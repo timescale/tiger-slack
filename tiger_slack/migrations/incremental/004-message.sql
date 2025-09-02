@@ -38,5 +38,6 @@ with
 , tsdb.orderby = 'ts desc, thread_ts desc'
 );
 create unique index on slack.message (channel_id, ts desc);
+create index on slack.message (channel_id, thread_ts, ts asc) where thread_ts is not null;
 create index on slack.message (channel_id, thread_ts, ts desc) where thread_ts is not null;
 create index on slack.message (user_id, thread_ts, channel_id) where thread_ts is not null;
