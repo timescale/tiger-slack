@@ -10,15 +10,15 @@ from psycopg_pool import AsyncConnectionPool
 from slack_bolt.adapter.socket_mode.websockets import AsyncSocketModeHandler
 from slack_bolt.app.async_app import AsyncApp
 
-from tiger_agent import __version__
-from tiger_agent.migrations.runner import migrate_db
-from tiger_agent.events import initialize
+from tiger_slack import __version__
+from tiger_slack.migrations.runner import migrate_db
+from tiger_slack.events import register_handlers
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
 
 logfire.configure(
-    service_name=os.getenv("SERVICE_NAME", "eon"),
+    service_name=os.getenv("SERVICE_NAME", "tiger-slack"),
     service_version=__version__,
 )
 logfire.instrument_psycopg()
@@ -91,7 +91,7 @@ async def main() -> None:
         handler = AsyncSocketModeHandler(app, slack_app_token)
         
         async with asyncio.TaskGroup() as tasks:
-            await initialize(app, pool, tasks, num_agent_workers=5)
+            await register_handlers(app, pool)
             tasks.create_task(handler.start_async())
 
 

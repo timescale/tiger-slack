@@ -18,3 +18,4 @@ create table if not exists slack.user
 , is_bot bool not null default false
 , updated int8
 );
+create index on slack.user (email) include (id);

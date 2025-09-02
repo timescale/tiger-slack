@@ -1,5 +1,4 @@
 import asyncio
-import random
 import traceback
 from typing import Any, Optional
 
@@ -9,8 +8,6 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from slack_bolt.app.async_app import AsyncApp
 from slack_bolt.context.ack.async_ack import AsyncAck
-
-from tiger_agent import agent
 
 
 _agent_trigger = asyncio.Queue()
@@ -109,17 +106,6 @@ async def remove_reaction(pool: AsyncConnectionPool, event: dict[str, Any]) -> N
     ):
         await cur.execute("select slack.remove_reaction(%s)", (Jsonb(event),))
 
-
-@logfire.instrument("insert_bot_event", extract_args=False)
-async def insert_bot_event(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    async with (
-        pool.connection() as con,
-        con.transaction() as _,
-        con.cursor() as cur,
-    ):
-        await cur.execute("select slack.insert_bot_event(%s)", (Jsonb(event),))
-
-
 @logfire.instrument("insert_event", extract_args=False)
 async def insert_event(pool: AsyncConnectionPool, event: dict[str, Any], error: Optional[dict[str, Any]]) -> None:
     try:
@@ -146,9 +132,6 @@ async def event_router(pool: AsyncConnectionPool, event: dict[str, Any]) -> None
             await add_reaction(pool, event)
         case "reaction_removed":
             await remove_reaction(pool, event)
-        case "app_mention":
-            await insert_bot_event(pool, event)
-            await _agent_trigger.put(True)  # signal an agent worker to service the request
         case "message":
             match event.get("subtype"):
                 case None | "bot_message" | "thread_broadcast" | "file_share":
@@ -163,19 +146,7 @@ async def event_router(pool: AsyncConnectionPool, event: dict[str, Any]) -> None
             logfire.warning(f"unrouted event", **event)
 
 
-async def agent_worker(app: AsyncApp, pool: AsyncConnectionPool, worker_id: int) -> None:
-    while True:
-        try:
-            jitter = random.randint(-15, 15)
-            await asyncio.wait_for(_agent_trigger.get(), timeout=(60.0 + jitter))
-            logfire.info("got one!", worker_id=worker_id)
-            await agent.run_agent(app, pool)
-        except asyncio.TimeoutError:
-            logfire.info("timeout", worker_id=worker_id)
-            await agent.run_agent(app, pool)
-
-
-async def initialize(app: AsyncApp, pool: AsyncConnectionPool, tasks: asyncio.TaskGroup, num_agent_workers: int = 5) -> None:
+async def register_handlers(app: AsyncApp, pool: AsyncConnectionPool) -> None:
     async def event_handler(ack: AsyncAck, event: dict[str, Any]):
         event_type = event.get("type")
         with logfire.span(event_type) as _:
@@ -196,12 +167,8 @@ async def initialize(app: AsyncApp, pool: AsyncConnectionPool, tasks: asyncio.Ta
             finally:
                 await insert_event(pool, event, error)
 
-    for worker_id in range(num_agent_workers):
-        tasks.create_task(agent_worker(app, pool, worker_id))
-
     app.message("")(event_handler)
     app.event("message")(event_handler)
-    app.event("app_mention")(event_handler)
     app.event("channel_created")(event_handler)
     app.event("channel_renamed")(event_handler)
     app.event("reaction_added")(event_handler)

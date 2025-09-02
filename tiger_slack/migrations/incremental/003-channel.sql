@@ -13,3 +13,4 @@ create table if not exists slack.channel
 , is_org_shared bool not null default false
 , updated int8
 );
+create index on slack.channel (channel_name) include (id);
