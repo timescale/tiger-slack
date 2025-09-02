@@ -3,6 +3,7 @@ import os
 import signal
 from typing import Any
 
+import aiocron
 from dotenv import load_dotenv, find_dotenv
 import logfire
 from psycopg import AsyncConnection
@@ -10,7 +11,7 @@ from psycopg_pool import AsyncConnectionPool
 from slack_bolt.adapter.socket_mode.websockets import AsyncSocketModeHandler
 from slack_bolt.app.async_app import AsyncApp
 
-from tiger_slack import __version__
+from tiger_slack import __version__, jobs
 from tiger_slack.migrations.runner import migrate_db
 from tiger_slack.events import register_handlers
 
@@ -87,6 +88,14 @@ async def main() -> None:
             token=slack_bot_token,
             ignoring_self_events_enabled=False,
         )
+
+        @aiocron.crontab('0 1 * * *')
+        async def daily_user_job() -> None:
+            await jobs.load_users(app.client, pool)
+
+        @aiocron.crontab('0 1 * * *')
+        async def daily_channel_job() -> None:
+            await jobs.load_channels(app.client, pool)
 
         handler = AsyncSocketModeHandler(app, slack_app_token)
         
