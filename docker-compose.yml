@@ -1,0 +1,25 @@
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_DB: tiger_slack
+      POSTGRES_USER: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres@db:5432/tiger_slack
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN}
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
