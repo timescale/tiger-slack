@@ -1624,6 +1624,7 @@ version = "0.0.1"
 source = { virtual = "." }
 dependencies = [
     { name = "aiocron" },
+    { name = "click" },
     { name = "logfire", extra = ["httpx", "psycopg", "system-metrics"] },
     { name = "psycopg", extra = ["pool"] },
     { name = "pydantic-ai", extra = ["logfire"] },
@@ -1636,6 +1637,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiocron", specifier = ">=2.1" },
+    { name = "click", specifier = ">=8.2.1" },
     { name = "logfire", extras = ["httpx", "psycopg", "system-metrics"], specifier = ">=4.3.6" },
     { name = "psycopg", extras = ["pool"], specifier = ">=3.2.9" },
     { name = "pydantic-ai", extras = ["logfire"], specifier = ">=0.8.0" },

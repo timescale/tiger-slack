@@ -31,16 +31,16 @@ as $func$
     , language
     , edited
     )
-    values
-    ( slack.to_timestamptz((_event->>'ts')::numeric)
+    select
+      slack.to_timestamptz(_event->>'ts')
     , _event->>'channel'
     , _event->>'team'
     , _event->>'text'
     , _event->>'type'
     , _event->>'user'
     , _event->'blocks'
-    , slack.to_timestamptz((_event->>'event_ts')::numeric)
-    , slack.to_timestamptz((_event->>'thread_ts')::numeric)
+    , slack.to_timestamptz(_event->>'event_ts')
+    , slack.to_timestamptz(_event->>'thread_ts')
     , _event->>'channel_type'
     , (_event->>'client_msg_id')::uuid
     , _event->>'parent_user_id'
@@ -57,7 +57,12 @@ as $func$
     , _event->'icons'
     , _event->'language'
     , _event->'edited'
-    );
+    where not exists
+    (
+        select 1
+        from slack.message_discard d
+        where jsonb_path_match(_event, d.match, silent=>true)
+    )
 $func$ language sql volatile security invoker
 ;
 
@@ -84,7 +89,7 @@ as $func$
     , language = jsonb_extract_path(_event, 'message', 'language')
     , edited = jsonb_extract_path(_event, 'message', 'edited')
     where (m.ts, m.channel_id) = 
-    ( slack.to_timestamptz(jsonb_extract_path_text(_event, 'message', 'ts')::numeric)
+    ( slack.to_timestamptz(jsonb_extract_path_text(_event, 'message', 'ts'))
     , _event->>'channel'
     );
 $func$ language sql volatile security invoker
@@ -95,7 +100,7 @@ $func$ language sql volatile security invoker
 create or replace function slack.delete_message(_event jsonb) returns void
 as $func$
     delete from slack.message m
-    where m.ts = slack.to_timestamptz((_event->>'deleted_ts')::numeric)
+    where m.ts = slack.to_timestamptz(_event->>'deleted_ts')
     and m.channel_id = _event->>'channel'
     ;
 $func$ language sql volatile security invoker

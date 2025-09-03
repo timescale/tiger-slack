@@ -92,14 +92,16 @@ if __name__ == "__main__":
     import os
 
     from dotenv import load_dotenv, find_dotenv
-    load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
     from tiger_slack import __version__
+
+    load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
     logfire.configure(
         service_name=os.getenv("SERVICE_NAME", "tiger-slack"),
         service_version=__version__,
     )
+    logfire.instrument_psycopg()
 
     database_url = os.getenv("DATABASE_URL")
     assert database_url is not None, "DATABASE_URL environment variable is missing!"

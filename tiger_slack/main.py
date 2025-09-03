@@ -39,6 +39,8 @@ logfire.instrument_system_metrics({
 def shutdown_handler(signum: int, _frame: Any):
     signame = signal.Signals(signum).name
     logfire.info(f"received {signame}, exiting")
+    loop = asyncio.get_running_loop()
+    loop.stop()
     exit(0)
 
 
