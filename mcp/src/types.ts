@@ -8,7 +8,7 @@ export interface ServerContext extends Record<string, unknown> {
 export const zUser = z.object({
   id: z.string(),
   // team_id: z.string(),
-  name: z.string().describe('The unique slack username.'),
+  user_name: z.string().describe('The unique slack username.'),
   real_name: z
     .string()
     .nullable()
@@ -52,9 +52,9 @@ export type User = z.infer<typeof zUser>;
 
 const commonMessageFields = {
   ts: z.string().describe('The timestamp of the message'),
-  channel: z.string().describe('The channel ID the message was posted in'),
+  channel_id: z.string().describe('The channel ID the message was posted in'),
   text: z.string().describe('The text content of the message'),
-  user: z.string().nullable().describe('The user ID of the message author'),
+  user_id: z.string().nullable().describe('The user ID of the message author'),
   thread_ts: z.string().nullable().describe('The thread timestamp, if a reply'),
   permalink: z.string().optional().describe('The hyperlink to the message'),
 };

@@ -19,15 +19,15 @@ export const messagesToTree = (
   // loop in reverse order to build tree in chronological order
   for (let i = messages.length - 1; i >= 0; i--) {
     const row = messages[i];
-    if (row.user) {
-      involvedUsers.add(row.user);
+    if (row.user_id) {
+      involvedUsers.add(row.user_id);
     }
     if (includePermalinks) {
       row.permalink = generatePermalink(row);
     }
 
-    const channel = (channels[row.channel] ??= {
-      id: row.channel,
+    const channel = (channels[row.channel_id] ??= {
+      id: row.channel_id,
       name: '',
       messages: [],
     });
@@ -48,12 +48,12 @@ export const messagesToTree = (
       if (!root) {
         root = {
           ts: row.thread_ts,
-          channel: row.channel,
+          channel_id: row.channel_id,
           text: '<missing root message>',
           thread_ts: null,
           permalink: row.permalink,
           reply_count: 1,
-          user: '<unknown>',
+          user_id: '<unknown>',
         };
 
         threadRoots[row.thread_ts] = root;

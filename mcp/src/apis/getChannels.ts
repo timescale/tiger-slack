@@ -36,13 +36,13 @@ export const getChannelsFactory: ApiFactory<
   fn: async ({ keyword }) => {
     const res = await pgPool.query(
       /* sql */ `
-SELECT id, name, topic, purpose
+SELECT id, channel_name, topic, purpose
   FROM slack.channel
   WHERE NOT is_archived
   AND (
     $1::text IS NULL OR
     id ILIKE $1 OR
-    name ILIKE $1
+    channel_name ILIKE $1
   )
 `,
       [keyword ? `%${keyword}%` : null],
@@ -51,7 +51,7 @@ SELECT id, name, topic, purpose
     return {
       results: res.rows.map((row: any) => ({
         id: row.id,
-        name: row.name,
+        name: row.channel_name,
         topic: row.topic,
         purpose: row.purpose,
       })),

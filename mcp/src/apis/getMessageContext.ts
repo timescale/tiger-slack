@@ -63,7 +63,7 @@ export const getMessageContextFactory: ApiFactory<
         selectExpandedMessages(
           /* sql */ `
 SELECT * FROM slack.message
-WHERE ts = $1 AND channel = $2
+WHERE ts = $1 AND channel_id = $2
 LIMIT 1
 `,
           '$3',

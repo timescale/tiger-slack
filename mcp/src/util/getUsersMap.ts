@@ -7,7 +7,7 @@ export const getUsersMap = async (
 ): Promise<Record<string, User>> => {
   const usersResult = await client.query<User>(
     /* sql */ `
-SELECT id, name, real_name, display_name, email, is_bot
+SELECT id, user_name, real_name, display_name, email, is_bot
   FROM slack.user
   WHERE id = ANY($1)
 `,

@@ -13,14 +13,14 @@ export const addChannelInfo = async (
 ): Promise<void> => {
   const channelsResult = await client.query(
     /* sql */ `
-SELECT id, name, topic, purpose
+SELECT id, channel_name, topic, purpose
   FROM slack.channel
   WHERE id = ANY($1)`,
     [Object.keys(channels)],
   );
   for (const row of channelsResult.rows) {
     if (channels[row.id]) {
-      channels[row.id].name = row.name;
+      channels[row.id].name = row.channel_name;
       channels[row.id].topic = row.topic;
       channels[row.id].purpose = row.purpose;
     }

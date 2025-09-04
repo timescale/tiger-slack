@@ -49,8 +49,8 @@ export const getThreadMessagesFactory: ApiFactory<
   fn: async ({ channel, includePermalinks, ts }) => {
     const result = await pgPool.query<Message>(
       /* sql */ `
-SELECT ts::text, channel, text, m.user, thread_ts::text FROM slack.message m
-  WHERE m.channel = $1 AND (m.thread_ts = $2 OR m.ts = $2)
+SELECT ts::text, channel_id, text, m.user_id, thread_ts::text FROM slack.message m
+  WHERE m.channel_id = $1 AND (m.thread_ts = $2 OR m.ts = $2)
   ORDER BY m.ts ASC`,
       [channel, convertTsToTimestamp(ts)],
     );

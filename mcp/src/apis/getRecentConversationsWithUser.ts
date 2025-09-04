@@ -78,10 +78,10 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
     }
     let [targetUser] = users;
     if (users.length > 1) {
-      const exact = users.find((c) => c.name === username);
+      const exact = users.find((c) => c.user_name === username);
       if (!exact) {
         throw new Error(
-          `Multiple users found matching "${username}": ${users.map((u) => u.name).join(', ')}`,
+          `Multiple users found matching "${username}": ${users.map((u) => u.user_name).join(', ')}`,
         );
       }
 
@@ -94,7 +94,7 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
         selectExpandedMessages(
           /* sql */ `
   SELECT * FROM slack.message
-  WHERE "user" = $1 AND ts >= (NOW() - $2::INTERVAL)
+  WHERE user_id = $1 AND ts >= (NOW() - $2::INTERVAL)
   ORDER BY ts DESC
   LIMIT $4
 `,

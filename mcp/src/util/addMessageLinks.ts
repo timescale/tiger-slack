@@ -10,5 +10,5 @@ export const generatePermalink = (message: Message): string | undefined => {
     : null;
 
   if (messageTs)
-    return `https://${SLACK_DOMAIN}.slack.com/archives/${message.channel}/p${messageTs}${threadTs ? `?thread_ts=${threadTs}` : ''}`;
+    return `https://${SLACK_DOMAIN}.slack.com/archives/${message.channel_id}/p${messageTs}${threadTs ? `?thread_ts=${threadTs}` : ''}`;
 };

@@ -83,12 +83,12 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
         /* sql */ `
 SELECT 
   ts::text, 
-  channel, 
+  channel_id, 
   text, 
-  "user", 
+  user_id, 
   thread_ts::text
 FROM slack.message
-WHERE channel = $1 
+WHERE channel_id = $1 
   AND ts >= (NOW() - $2::INTERVAL)
 ORDER BY ts DESC
 LIMIT $3`,
