@@ -18,6 +18,27 @@ services:
       DATABASE_URL: postgresql://postgres@db:5432/tiger_slack
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
       SLACK_APP_TOKEN: ${SLACK_APP_TOKEN}
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN}
+      LOGFIRE_ENVIRONMENT: ${LOGFIRE_ENVIRONMENT:-development}
+    depends_on:
+      - db
+
+  mcp-server:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    environment:
+      PGHOST: db
+      PGDATABASE: tiger_slack
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ""
+      SLACK_DOMAIN: ${SLACK_DOMAIN}
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN}
+      LOGFIRE_TRACES_ENDPOINT: ${LOGFIRE_TRACES_ENDPOINT:-https://logfire-api.pydantic.dev/v1/traces}
+      LOGFIRE_LOGS_ENDPOINT: ${LOGFIRE_LOGS_ENDPOINT:-https://logfire-api.pydantic.dev/v1/logs}
+    ports:
+      - "3000:3000"
     depends_on:
       - db
 
