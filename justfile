@@ -18,6 +18,22 @@ restart:
 psql:
     docker compose exec db psql -U postgres -d tiger_slack
 
+load-data:
+    docker compose exec app uv run python -m tiger_slack.jobs
+
+# Import historical Slack export data
+# Usage: just import-history /path/to/extracted/slack/export
+import-history DIRECTORY:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔄 Importing Slack historical data from: {{DIRECTORY}}"
+    echo "📋 Make sure you've extracted the Slack export zip file first"
+    
+    cd db
+    uv run python -m tiger_slack.import "{{DIRECTORY}}"
+    
+    echo "✅ Import completed! Data from {{DIRECTORY}} has been loaded into the database"
+
 # Full reset
 reset: down
     docker compose down -v

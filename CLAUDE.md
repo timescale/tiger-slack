@@ -26,6 +26,11 @@ This is a Slack integration project with TimescaleDB backend and MCP server for 
 - `just build` - Build/rebuild containers
 - `just logs` - View service logs
 - `just psql` - Connect to database
+- `just reset` - Full reset: stop containers, remove volumes, restart fresh
+
+**Data Population:**
+- `just load-data` - Load current users and channels from Slack API (runs in container)
+- `just import-history /path/to/slack-export/` - Import historical Slack export data (runs on host)
 
 **MCP Setup:**
 - `just setup-tiger-slack-mcp` - Setup Tiger Slack MCP via HTTP transport (no secrets)
@@ -89,9 +94,10 @@ This project uses git submodules for MCP boilerplate:
 
 **MCP Server Testing:**
 1. Start services: `just up`
-2. Setup MCP servers: `just setup-tiger-slack-mcp && just setup-logfire-mcp`
-3. Test in Claude Code: Ask "What Slack channels are available?"
-4. Verify traces in Logfire dashboard
+2. Load data: `just load-data` (or `just import-history /path/to/export/`)
+3. Setup MCP servers: `just setup-tiger-slack-mcp && just setup-logfire-mcp`
+4. Test in Claude Code: Ask "What Slack channels are available?"
+5. Verify traces in Logfire dashboard
 
 **Database Testing:**
 - Use `just psql` for direct database access
@@ -129,6 +135,26 @@ just psql
 - Use project-scoped MCP configuration for team development
 - Logfire tokens should be kept secure in `.env` only
 - Database uses trust authentication for local development only
+
+## Database Schema
+
+**Key Tables:**
+- `slack.user` - Slack workspace users
+- `slack.channel` - Slack channels (public/private)
+- `slack.message` - All messages with threading support
+- `slack.version` - Database schema version for migrations
+
+**Important Column Names:**
+- `slack.user.user_name` - Slack username (not `name`)
+- `slack.channel.channel_name` - Channel name (not `name`)  
+- `slack.message.user_id` - Message author ID (not `user`)
+- `slack.message.channel_id` - Channel ID (not `channel`)
+
+**Schema Evolution:**
+- Database migrations run automatically on app startup
+- MCP server queries updated to match current schema (v0.0.1)
+- All SQL queries in TypeScript use correct column names
+- Historical data imports handle schema correctly
 
 ## Deployment Notes
 

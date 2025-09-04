@@ -71,6 +71,10 @@ LOGFIRE_LOGS_ENDPOINT="https://logfire-api.pydantic.dev/v1/logs"
 **Database Access:**
 - `just psql` - Connect to the TimescaleDB database with psql
 
+**Data Population:**
+- `just load-data` - Load current users and channels from Slack API
+- `just import-history /path/to/slack-export/` - Import historical Slack export data
+
 ### Services
 
 **Database (`db` service):**
@@ -125,7 +129,16 @@ just setup-logfire-mcp
    claude mcp list
    ```
 
-2. **Test in Claude Code:**
+2. **Load Slack data:**
+   ```bash
+   # Load current users and channels
+   just load-data
+   
+   # OR load historical export data (see Data Import section below)
+   just import-history /path/to/slack-export/
+   ```
+
+3. **Test in Claude Code:**
    - Open Claude Code in this project
    - Ask: "What Slack channels are available?"
    - The MCP server should respond with channel data from your database
@@ -159,6 +172,104 @@ npm run start:http  # Runs on port 3001
 **Rebuild MCP server:**
 ```bash
 just build  # Rebuilds all Docker containers including MCP server
+```
+
+## Data Import
+
+The system supports two ways to populate your database with Slack data:
+
+### Method 1: Load Current Data (`just load-data`)
+
+Load current users and channels from the Slack API:
+
+```bash
+# Make sure services are running
+just up
+
+# Load all current users and channels
+just load-data
+```
+
+**What this does:**
+- Fetches all users from Slack API using `users.list`
+- Fetches all channels from Slack API using `conversations.list`
+- Stores data in TimescaleDB with proper indexing
+- Uses advisory locks to prevent concurrent execution
+- Provides comprehensive Logfire tracing
+
+**Results:**
+- All workspace users (active, inactive, bots filtered appropriately)
+- All channels (public, private, archived status)
+- No historical messages (only current channel/user metadata)
+
+### Method 2: Import Historical Export (`just import-history`)
+
+Import a complete historical Slack workspace export:
+
+```bash
+# Step 1: Download Slack export
+# Go to your Slack workspace → Settings & administration → Workspace settings
+# → Import/Export Data → Export → Start Export → Download the zip file
+
+# Step 2: Extract the zip file to a directory
+unzip slack-export.zip -d /path/to/slack-export/
+
+# Step 3: Run the import (this runs on the host, not in container)
+just import-history /path/to/slack-export/
+```
+
+**What this does:**
+- Loads all users and channels (same as Method 1)
+- Processes each channel directory in the export
+- Imports all historical messages from JSON files
+- Reconstructs message threads and reply structures  
+- Imports reactions with user mappings
+- Handles message attachments, files, and metadata
+- Provides detailed progress tracking via Logfire
+
+**Results:**
+- Complete workspace history (all messages, threads, reactions)
+- Full user and channel metadata
+- Message attachments and file references
+- Thread conversation structures preserved
+
+**Export Structure Expected:**
+```
+slack-export/
+├── channels.json
+├── users.json
+├── integration_logs.json
+├── general/              # Channel directories
+│   ├── 2023-01-01.json  # Daily message files
+│   ├── 2023-01-02.json
+│   └── ...
+├── random/
+│   ├── 2023-01-01.json
+│   └── ...
+└── ...
+```
+
+**Performance Notes:**
+- Historical imports can take significant time depending on workspace size
+- Database uses `ON CONFLICT DO NOTHING` to handle duplicate data safely
+- All operations are wrapped in transactions for consistency
+- Progress is tracked in real-time via Logfire dashboard
+
+### Verification
+
+After either import method, verify your data:
+
+```bash
+# Check data counts
+just psql -c "
+SELECT 
+  (SELECT COUNT(*) FROM slack.user) as users,
+  (SELECT COUNT(*) FROM slack.channel) as channels,
+  (SELECT COUNT(*) FROM slack.message) as messages;
+"
+
+# Test the MCP server
+# In Claude Code, ask: "How many Slack users and channels do we have?"
 ```
 
 ## Observability with Logfire
