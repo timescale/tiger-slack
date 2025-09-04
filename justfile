@@ -23,45 +23,11 @@ reset: down
     docker compose down -v
     docker compose up -d
 
-# MCP Configuration for Claude Code
-configure-logfire-mcp:
+# MCP Server Setup for Claude Code
+setup-logfire-mcp:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Configuring Logfire MCP for Claude Code..."
-    
-    # Source environment variables
-    if [ -f .env ]; then
-        set -a
-        source .env
-        set +a
-    fi
-    
-    # Ensure .claude directory exists
-    mkdir -p .claude
-    
-    # Create Claude Code MCP configuration for Logfire
-    cat > .claude/logfire_mcp_config.json << EOF
-    {
-      "mcpServers": {
-        "logfire": {
-          "command": "python",
-          "args": ["-m", "logfire", "mcp"],
-          "env": {
-            "LOGFIRE_TOKEN": "${LOGFIRE_TOKEN}"
-          }
-        }
-      }
-    }
-    EOF
-    
-    echo "✅ Logfire MCP configured in .claude/mcp_config.json"
-    echo "💡 Use: claude mcp connect .claude/mcp_config.json"
 
-configure-tiger-slack-mcp:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Configuring Tiger Slack MCP server for Claude Code..."
-    
     # Source environment variables
     if [ -f .env ]; then
         set -a
@@ -69,63 +35,23 @@ configure-tiger-slack-mcp:
         set +a
     fi
     
-    # Ensure .claude directory exists  
-    mkdir -p .claude
+    # Check if LOGFIRE_READ_TOKEN is set
+    if [ -z "${LOGFIRE_READ_TOKEN:-}" ]; then
+        echo "❌ LOGFIRE_READ_TOKEN not found in .env file"
+        echo "💡 Add: LOGFIRE_READ_TOKEN=\"your-token\" to your .env file"
+        exit 1
+    fi
     
-    # Get absolute path to project
-    PROJECT_PATH=$(pwd)
-    
-    # Set defaults for optional vars
-    LOGFIRE_TRACES_ENDPOINT=${LOGFIRE_TRACES_ENDPOINT:-https://logfire-api.pydantic.dev/v1/traces}
-    LOGFIRE_LOGS_ENDPOINT=${LOGFIRE_LOGS_ENDPOINT:-https://logfire-api.pydantic.dev/v1/logs}
-    
-    # Create Claude Code MCP configuration for Tiger Slack server
-    cat > .claude/tiger_slack_mcp_config.json << EOF
-    {
-      "mcpServers": {
-        "tiger-slack": {
-          "command": "node", 
-          "args": ["${PROJECT_PATH}/mcp/dist/index.js", "stdio"],
-          "env": {
-            "PGHOST": "localhost",
-            "PGDATABASE": "tiger_slack", 
-            "PGPORT": "5432",
-            "PGUSER": "postgres",
-            "PGPASSWORD": "",
-            "SLACK_DOMAIN": "${SLACK_DOMAIN}",
-            "LOGFIRE_TOKEN": "${LOGFIRE_TOKEN}",
-            "LOGFIRE_TRACES_ENDPOINT": "${LOGFIRE_TRACES_ENDPOINT}",
-            "LOGFIRE_LOGS_ENDPOINT": "${LOGFIRE_LOGS_ENDPOINT}"
-          }
-        }
-      }
-    }
-    EOF
-    
-    echo "✅ Tiger Slack MCP configured in .claude/tiger_slack_mcp_config.json"
-    echo "💡 Use: claude mcp connect .claude/tiger_slack_mcp_config.json"
+    claude mcp add -s project logfire -e LOGFIRE_READ_TOKEN="${LOGFIRE_READ_TOKEN}" -- uvx logfire-mcp@latest
+
+setup-tiger-slack-mcp:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔌 Setting up Tiger Slack MCP server in Claude Code..."
     echo "📋 Make sure Docker services are running: just up"
-
-# Connect to MCP servers in Claude Code
-connect-logfire-mcp:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ ! -f .claude/logfire_mcp_config.json ]; then
-        echo "❌ Logfire MCP config not found. Run: just configure-logfire-mcp"
-        exit 1
-    fi
-    echo "🔌 Adding Logfire MCP server to Claude Code..."
-    claude mcp add-json -s project logfire "$(cat .claude/logfire_mcp_config.json | jq -c '.mcpServers.logfire')"
-    echo "✅ Added Logfire MCP server!"
-
-connect-tiger-slack-mcp:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ ! -f .claude/tiger_slack_mcp_config.json ]; then
-        echo "❌ Tiger Slack MCP config not found. Run: just configure-tiger-slack-mcp"
-        exit 1
-    fi
-    echo "🔌 Adding Tiger Slack MCP server to Claude Code..."
-    claude mcp add-json -s project tiger-slack "$(cat .claude/tiger_slack_mcp_config.json | jq -c '.mcpServers."tiger-slack"')"
-    echo "✅ Added Tiger Slack MCP server!"
+    
+    claude mcp add -s project --transport http tiger-slack http://localhost:3000/mcp
+    
+    echo "✅ Added Tiger Slack MCP server with project scope!"
+    echo "🔗 Connects via HTTP to containerized MCP server (no secrets in config)"
     echo "📊 Traces will appear in Logfire dashboard"

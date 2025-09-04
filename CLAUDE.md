@@ -27,11 +27,9 @@ This is a Slack integration project with TimescaleDB backend and MCP server for 
 - `just logs` - View service logs
 - `just psql` - Connect to database
 
-**MCP Configuration:**
-- `just configure-tiger-slack-mcp` - Generate MCP config
-- `just connect-tiger-slack-mcp` - Connect to Claude Code
-- `just configure-logfire-mcp` - Configure Logfire MCP
-- `just connect-logfire-mcp` - Connect Logfire MCP
+**MCP Setup:**
+- `just setup-tiger-slack-mcp` - Setup Tiger Slack MCP via HTTP transport (no secrets)
+- `just setup-logfire-mcp` - Setup Logfire MCP using official command
 
 **Development:**
 - TypeScript: `cd mcp && npm run build && npm run start`
@@ -56,6 +54,7 @@ This is a Slack integration project with TimescaleDB backend and MCP server for 
 **Docker & Infrastructure:**
 - Multi-stage Docker builds preferred
 - Environment variables for configuration
+- HTTP-based MCP transport (secrets stay in containers)
 - Project-scoped MCP configuration
 - No secrets in git (use .env files)
 
@@ -66,7 +65,8 @@ This is a Slack integration project with TimescaleDB backend and MCP server for 
 SLACK_BOT_TOKEN="xoxb-..."
 SLACK_APP_TOKEN="xapp-..."
 SLACK_DOMAIN="workspace-name"
-LOGFIRE_TOKEN="pylf_..."
+LOGFIRE_TOKEN="pylf_..."  # Write token for sending traces/logs
+LOGFIRE_READ_TOKEN="pylf_..."  # Read token for Claude Code MCP queries
 LOGFIRE_ENVIRONMENT="development"
 LOGFIRE_TRACES_ENDPOINT="https://logfire-api.pydantic.dev/v1/traces"
 LOGFIRE_LOGS_ENDPOINT="https://logfire-api.pydantic.dev/v1/logs"
@@ -89,7 +89,7 @@ This project uses git submodules for MCP boilerplate:
 
 **MCP Server Testing:**
 1. Start services: `just up`
-2. Configure MCP: `just configure-tiger-slack-mcp && just connect-tiger-slack-mcp`
+2. Setup MCP servers: `just setup-tiger-slack-mcp && just setup-logfire-mcp`
 3. Test in Claude Code: Ask "What Slack channels are available?"
 4. Verify traces in Logfire dashboard
 
@@ -123,9 +123,11 @@ just psql
 
 ## Security Considerations
 
-- Never commit `.env` or `.mcp.json` files (contain secrets)
+- Never commit `.env` files (contain secrets)
+- `.mcp.json` contains no secrets (uses HTTP transport to containers)
+- HTTP MCP transport keeps all credentials in Docker environment
 - Use project-scoped MCP configuration for team development
-- Logfire tokens should be kept secure
+- Logfire tokens should be kept secure in `.env` only
 - Database uses trust authentication for local development only
 
 ## Deployment Notes
@@ -138,8 +140,9 @@ just psql
 ## Integration Points
 
 **Claude Code Integration:**
-- Uses stdio MCP protocol for AI queries
-- Provides Slack data access tools
+- Uses HTTP MCP transport to containerized server
+- Connects to `http://localhost:3000/mcp` (no secrets in Claude config)
+- Provides Slack data access tools via HTTP API
 - Generates Logfire traces for observability
 - Project-scoped configuration for team use
 

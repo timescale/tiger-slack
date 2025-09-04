@@ -17,8 +17,8 @@ A Slack integration project with TimescaleDB backend and MCP (Model Context Prot
 
 3. **Set up MCP servers for Claude Code:**
    ```bash
-   just configure-tiger-slack-mcp
-   just connect-tiger-slack-mcp
+   just setup-tiger-slack-mcp
+   just setup-logfire-mcp
    ```
 
 ## Architecture
@@ -49,7 +49,8 @@ SLACK_APP_TOKEN="xapp-your-app-token"
 SLACK_DOMAIN="your-workspace-name"
 
 # Logfire configuration (https://logfire.pydantic.dev)
-LOGFIRE_TOKEN="pylf_your_token_here"
+LOGFIRE_TOKEN="pylf_your_write_token_here"  # For sending traces/logs
+LOGFIRE_READ_TOKEN="pylf_your_read_token_here"  # For Claude Code MCP queries
 LOGFIRE_ENVIRONMENT="development"
 LOGFIRE_TRACES_ENDPOINT="https://logfire-api.pydantic.dev/v1/traces"
 LOGFIRE_LOGS_ENDPOINT="https://logfire-api.pydantic.dev/v1/logs"
@@ -85,7 +86,8 @@ LOGFIRE_LOGS_ENDPOINT="https://logfire-api.pydantic.dev/v1/logs"
 
 **MCP Server (`mcp-server` service):**
 - **Purpose**: TypeScript-based MCP server for AI queries
-- **Port**: `localhost:3000` (HTTP mode)
+- **Port**: `localhost:3000` (HTTP transport for Claude Code)
+- **Transport**: HTTP-based MCP (no secrets needed in Claude config)
 - **Dependencies**: Database, includes full Logfire tracing
 - **Built from**: `./mcp/` directory with git submodule dependencies
 
@@ -99,25 +101,22 @@ The MCP (Model Context Protocol) server allows AI assistants like Claude Code to
 2. **Start Docker services**: `just up`
 3. **Ensure MCP server is built**: The Docker build process handles TypeScript compilation
 
-### Configuration Commands
+### Setup Commands
 
-**Configure MCP Servers:**
+**One-command setup for each MCP server:**
 ```bash
-# Configure Tiger Slack MCP server (your main server)
-just configure-tiger-slack-mcp
+# Setup Tiger Slack MCP server (connects via HTTP to Docker container)
+just setup-tiger-slack-mcp
 
-# Configure Logfire MCP server (for observability queries)  
-just configure-logfire-mcp
+# Setup Logfire MCP server (for observability queries)  
+just setup-logfire-mcp
 ```
 
-**Connect to Claude Code:**
-```bash
-# Connect Tiger Slack MCP server to Claude Code
-just connect-tiger-slack-mcp
-
-# Connect Logfire MCP server to Claude Code
-just connect-logfire-mcp
-```
+**Key Benefits of HTTP Transport:**
+- 🔒 **No secrets in Claude Code config** - all credentials stay in Docker environment
+- 🐳 **Tests full Docker setup** - verifies the complete containerized stack
+- 🔗 **Simple HTTP connection** - connects to `http://localhost:3000/mcp`
+- 🚀 **Production-ready** - mirrors how MCP would work in deployment
 
 ### Verify Setup
 
@@ -229,9 +228,9 @@ just reset
 # Verify .env file exists and has correct values
 cat .env
 
-# Regenerate MCP configs with fresh env vars
-just configure-tiger-slack-mcp
-just connect-tiger-slack-mcp
+# Re-setup MCP servers with fresh env vars
+just setup-tiger-slack-mcp
+just setup-logfire-mcp
 ```
 
 **"Git submodule issues":**
@@ -262,8 +261,9 @@ just build
 
 ### Security Notes
 
-- `.env` file contains secrets - never commit
-- `.mcp.json` contains tokens - automatically ignored by git
+- `.env` file contains secrets - never commit to git
+- `.mcp.json` is generated locally - automatically ignored by git  
+- **HTTP MCP transport** keeps all secrets in Docker containers (not Claude config)
 - Use project-scoped MCP configuration for team development
 - Regenerate tokens if accidentally exposed
 
