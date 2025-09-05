@@ -132,7 +132,7 @@ just setup-logfire-mcp
 2. **Load Slack data:**
    ```bash
    # Load current users and channels
-   just load-data
+   just load-channels-and-users
    
    # OR load historical export data (see Data Import section below)
    just import-history /path/to/slack-export/

@@ -14,11 +14,14 @@ logs:
 restart:
     docker compose restart
 
-# Database commands
+reset: down
+    docker compose down -v
+    docker compose up -d
+
 psql:
     psql -h localhost -p 5432 -U postgres -d tiger_slack
 
-load-data:
+load-channels-and-users:
     docker compose exec app uv run python -m tiger_slack.jobs
 
 # Import historical Slack export data
@@ -34,10 +37,6 @@ import-history DIRECTORY:
     
     echo "✅ Import completed! Data from {{DIRECTORY}} has been loaded into the database"
 
-# Full reset
-reset: down
-    docker compose down -v
-    docker compose up -d
 
 # MCP Server Setup for Claude Code
 setup-logfire-mcp:
