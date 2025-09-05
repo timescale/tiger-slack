@@ -20,10 +20,10 @@ as $func$
     , jsonb_extract_path_text(_event, 'channel', 'name')
     , jsonb_extract_path_text(_event, 'channel', 'topic', 'value')
     , jsonb_extract_path_text(_event, 'channel', 'purpose', 'value')
-    , jsonb_extract_path_text(_event, 'channel', 'is_archived')::boolean
-    , jsonb_extract_path_text(_event, 'channel', 'is_shared')::boolean
-    , jsonb_extract_path_text(_event, 'channel', 'is_ext_shared')::boolean
-    , jsonb_extract_path_text(_event, 'channel', 'is_org_shared')::boolean
+    , coalesce(jsonb_extract_path_text(_event, 'channel', 'is_archived')::boolean, false)
+    , coalesce(jsonb_extract_path_text(_event, 'channel', 'is_shared')::boolean, false)
+    , coalesce(jsonb_extract_path_text(_event, 'channel', 'is_ext_shared')::boolean, false)
+    , coalesce(jsonb_extract_path_text(_event, 'channel', 'is_org_shared')::boolean, false)
     , jsonb_extract_path_text(_event, 'channel', 'updated')::bigint
     )
     on conflict (id) do update set

@@ -5,6 +5,10 @@ from psycopg_pool import AsyncConnectionPool
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.web.async_slack_response import AsyncSlackResponse
 
+# Advisory lock keys for job coordination
+USERS_LOCK_KEY = 5245366294413312
+CHANNELS_LOCK_KEY = 6801911210587046
+
 
 @logfire.instrument("try_job_lock", extract_args=["shared_lock_key"])
 async def try_lock(cur: AsyncCursor, shared_lock_key: int) -> bool:
@@ -26,7 +30,7 @@ async def load_users(client: AsyncWebClient, pool: AsyncConnectionPool) -> None:
             con.cursor() as cur
         ):
             # make sure no one else is already running the job
-            if not await try_lock(cur, 5245366294413312):
+            if not await try_lock(cur, USERS_LOCK_KEY):
                 return
             args = {
                 "limit": 999
@@ -60,7 +64,7 @@ async def load_channels(client: AsyncWebClient, pool: AsyncConnectionPool) -> No
             con.cursor() as cur
         ):
             # make sure no one else is already running the job
-            if not await try_lock(cur, 6801911210587046):
+            if not await try_lock(cur, CHANNELS_LOCK_KEY):
                 return
             args = {
                 "limit": 999
