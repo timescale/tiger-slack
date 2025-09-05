@@ -16,7 +16,7 @@ restart:
 
 # Database commands
 psql:
-    docker compose exec db psql -U postgres -d tiger_slack
+    psql -h localhost -p 5432 -U postgres -d tiger_slack
 
 load-data:
     docker compose exec app uv run python -m tiger_slack.jobs
