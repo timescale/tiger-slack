@@ -8,7 +8,6 @@ import click
 import logfire
 import psycopg
 from dotenv import load_dotenv, find_dotenv
-from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 from psycopg.types.json import Jsonb
 
@@ -27,36 +26,41 @@ database_url = os.getenv("DATABASE_URL")
 assert database_url is not None, "DATABASE_URL environment variable is missing!"
 
 
-async def get_channel_id(con: AsyncConnection, channel_name: str) -> str | None:
-    async with con.cursor() as cur:
+@logfire.instrument("get_channel_name_to_id_mapping", extract_args=False)
+async def get_channel_name_to_id_mapping(pool: AsyncConnectionPool) -> dict[str, str]:
+    async with (
+        pool.connection() as con,
+        con.cursor() as cur
+    ):
         await cur.execute("""\
-            select id
+            select
+              channel_name
+            , id
             from slack.channel
-            where channel_name = %s
-        """, (channel_name,))
-        row = await cur.fetchone()
-        return row[0] if row else None
+        """)
+        return {row[0]: row[1] for row in await cur.fetchall()}
 
 
 @logfire.instrument("channel_dirs", extract_args=["directory"])
 async def channel_dirs(pool: AsyncConnectionPool, directory: Path) -> list[tuple[Path, str]]:
+    name_to_id = await get_channel_name_to_id_mapping(pool)
     dirs = []
-    async with pool.connection() as con:
-        for d in [d for d in directory.iterdir() if d.is_dir() and not d.name.startswith("FC:")]:
-            channel_name = d.name
-            channel_id = await get_channel_id(con, d.name)
-            if channel_id is None:
-                logfire.warning(f"found no channel id for: {channel_name}")
-                continue
-            dirs.append((d, channel_id))
+    for d in [d for d in directory.iterdir() if d.is_dir() and not d.name.startswith("FC:")]:
+        channel_name = d.name
+        channel_id = name_to_id.get(channel_name)
+        if channel_id is None:
+            logfire.warning(f"found no channel id for: {channel_name}")
+            continue
+        dirs.append((d, channel_id))
     dirs.sort()
     return dirs
 
 
 async def channel_files(pool: AsyncConnectionPool, directory: Path) -> AsyncGenerator[tuple[str, Path, str], None]:
     for channel_dir, channel_id in await channel_dirs(pool, directory):
-        for file in channel_dir.glob("*.json"):
-            yield channel_id, file, file.read_text()
+        with logfire.span("load_messages_for_channel", channel_dir=channel_dir, channel_id=channel_id) as _:
+            for file in channel_dir.glob("*.json"):
+                yield channel_id, file, file.read_text()
 
 
 @logfire.instrument("load_users_from_file", extract_args=["file_path"])
@@ -173,7 +177,7 @@ on conflict (ts, channel_id) do nothing
 """
 
 
-async def load_messages(pool: AsyncConnectionPool, channel_id: str, file: Path, json: str) -> None:
+async def load_messages_from_file(pool: AsyncConnectionPool, channel_id: str, file: Path, json: str) -> None:
     async with (
         pool.connection() as con,
         con.cursor() as cur,
@@ -185,6 +189,12 @@ async def load_messages(pool: AsyncConnectionPool, channel_id: str, file: Path, 
         except psycopg.Error as e:
             logfire.exception("failed to load json file", channel_id=channel_id, file=file, error=str(e))
             raise
+
+
+@logfire.instrument("load_messages", extract_args=["directory"])
+async def load_messages(pool: AsyncConnectionPool, directory: Path) -> None:
+    async for channel_id, file, json in channel_files(pool, directory):
+        await load_messages_from_file(pool, channel_id, file, json)
 
 
 @logfire.instrument("run_import")
@@ -214,8 +224,7 @@ async def run_import(directory: Path):
             logfire.warning("channels.json not found in directory", directory=directory)
         
         # Import message history from channel subdirectories
-        async for channel_id, file, json in channel_files(pool, directory):
-            await load_messages(pool, channel_id, file, json)
+        await load_messages(pool, directory)
 
 
 @click.command()
