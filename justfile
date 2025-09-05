@@ -59,7 +59,7 @@ import-history DIRECTORY:
         exit 1
     fi
     
-    cd db
+    cd ingest
     uv run python -m tiger_slack.import "{{DIRECTORY}}"
     
     echo "✅ Import completed! Data from {{DIRECTORY}} has been loaded into the database"
