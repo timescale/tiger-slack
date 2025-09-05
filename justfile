@@ -18,6 +18,16 @@ reset: down
     docker compose down -v
     docker compose up -d
 
+# Nuclear option: completely destroy all containers, volumes, and networks
+nuclear-reset:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "💥 Nuclear reset: destroying everything..."
+    docker compose down -v --remove-orphans
+    docker system prune -f --volumes
+    echo "🔄 Starting fresh..."
+    docker compose up -d --build
+
 psql:
     psql -h localhost -p 5432 -U postgres -d tiger_slack
 
@@ -31,6 +41,23 @@ import-history DIRECTORY:
     set -euo pipefail
     echo "🔄 Importing Slack historical data from: {{DIRECTORY}}"
     echo "📋 Make sure you've extracted the Slack export zip file first"
+    
+    # Source environment variables
+    if [ -f .env ]; then
+        set -a
+        source .env
+        set +a
+        echo "✅ Loaded environment variables from .env"
+    else
+        echo "⚠️  No .env file found - using system environment variables"
+    fi
+    
+    # Check if DATABASE_URL is set
+    if [ -z "${DATABASE_URL:-}" ]; then
+        echo "❌ DATABASE_URL not found in environment"
+        echo "💡 Make sure DATABASE_URL is set in your .env file or environment"
+        exit 1
+    fi
     
     cd db
     uv run python -m tiger_slack.import "{{DIRECTORY}}"
