@@ -288,7 +288,30 @@ This project integrates with [Logfire](https://logfire.pydantic.dev) for compreh
 - All MCP tool calls from Claude Code
 - Database query performance
 - HTTP request traces
+- Session management and lifecycle events
 - OpenTelemetry auto-instrumentation
+
+### Environment Configuration
+
+Both services use the same **Logfire environment** for trace organization:
+
+- **Python App**: Uses `LOGFIRE_ENVIRONMENT` from your `.env` file
+- **MCP Server**: Uses `LOGFIRE_ENVIRONMENT` passed through Docker Compose  
+- **Container Runtime**: Uses `NODE_ENV=production` for Node.js performance optimization
+
+This separation allows:
+- **Production-optimized containers** (NODE_ENV=production)
+- **Logical trace grouping** (LOGFIRE_ENVIRONMENT=dev-john, staging, production, etc.)
+- **Environment isolation** in the Logfire dashboard
+
+**Example configuration:**
+```bash
+# In your .env file
+LOGFIRE_ENVIRONMENT="dev-john"    # Logfire trace environment
+LOGFIRE_TOKEN="pylf_..."          # Write token for sending traces
+```
+
+The MCP server automatically inherits your `LOGFIRE_ENVIRONMENT` setting, ensuring all traces from both services appear in the same logical environment in Logfire.
 
 ### Viewing Traces
 
@@ -310,7 +333,7 @@ When you ask Claude Code "What are the recent messages in #general?":
 
 ### Common Issues
 
-**"MCP server not responding":**
+**"MCP server not responding" or "No valid session ID provided":**
 ```bash
 # Check if services are running
 docker compose ps
@@ -318,9 +341,18 @@ docker compose ps
 # Check MCP server logs  
 docker compose logs mcp-server
 
-# Rebuild and restart
+# Remove and re-add MCP server (fixes stale sessions)
+claude mcp remove tiger-slack
+just setup-tiger-slack-mcp
+
+# If still failing, rebuild and restart
 just build && just up
 ```
+
+**Session handling notes:**
+- MCP server automatically handles stale session IDs from Claude Code restarts
+- Instrumentation requires `INSTRUMENT=true` environment variable
+- Both HTTP and stdio transports supported (HTTP recommended for production)
 
 **"Database connection failed":**
 ```bash

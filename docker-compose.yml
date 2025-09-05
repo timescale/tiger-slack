@@ -34,7 +34,11 @@ services:
       PGUSER: postgres
       PGPASSWORD: ""
       SLACK_DOMAIN: ${SLACK_DOMAIN}
+      INSTRUMENT: "true"
+      OTEL_SERVICE_NAME: "tiger-slack-mcp"
+      OTEL_LOG_LEVEL: "info"
       LOGFIRE_TOKEN: ${LOGFIRE_TOKEN}
+      LOGFIRE_ENVIRONMENT: ${LOGFIRE_ENVIRONMENT:-development}
       LOGFIRE_TRACES_ENDPOINT: ${LOGFIRE_TRACES_ENDPOINT:-https://logfire-api.pydantic.dev/v1/traces}
       LOGFIRE_LOGS_ENDPOINT: ${LOGFIRE_LOGS_ENDPOINT:-https://logfire-api.pydantic.dev/v1/logs}
     ports:

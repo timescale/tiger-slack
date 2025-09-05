@@ -62,6 +62,8 @@ This is a Slack integration project with TimescaleDB backend and MCP server for 
 - HTTP-based MCP transport (secrets stay in containers)
 - Project-scoped MCP configuration
 - No secrets in git (use .env files)
+- **NODE_ENV=production** in containers for performance optimization
+- **LOGFIRE_ENVIRONMENT** for logical trace organization (separate from NODE_ENV)
 
 ## Environment Configuration
 
@@ -72,7 +74,7 @@ SLACK_APP_TOKEN="xapp-..."
 SLACK_DOMAIN="workspace-name"
 LOGFIRE_TOKEN="pylf_..."  # Write token for sending traces/logs
 LOGFIRE_READ_TOKEN="pylf_..."  # Read token for Claude Code MCP queries
-LOGFIRE_ENVIRONMENT="development"
+LOGFIRE_ENVIRONMENT="dev-john"  # Logical environment for trace organization
 LOGFIRE_TRACES_ENDPOINT="https://logfire-api.pydantic.dev/v1/traces"
 LOGFIRE_LOGS_ENDPOINT="https://logfire-api.pydantic.dev/v1/logs"
 ```
@@ -111,6 +113,19 @@ This project uses git submodules for MCP boilerplate:
 - Database queries, HTTP requests, and MCP calls are traced
 - Real-time observability for debugging and performance monitoring
 
+**Environment Configuration:**
+- **Python App**: Uses `LOGFIRE_ENVIRONMENT` from `.env` file
+- **MCP Server**: Inherits `LOGFIRE_ENVIRONMENT` via Docker Compose + `NODE_ENV=production` for container optimization
+- **Instrumentation**: Requires `INSTRUMENT=true` environment variable to enable OpenTelemetry
+- **Service Names**: `tiger-slack` (Python) and `tiger-slack-mcp` (TypeScript)
+- **Trace Correlation**: Both services use the same Logfire environment for unified observability
+
+**MCP Session Handling:**
+- HTTP transport handles stale session IDs automatically (server restart resilience)
+- Session cleanup prevents memory leaks during container restarts
+- Both HTTP and stdio transports supported (HTTP recommended for containerized deployments)
+- Session state logs help debug connection issues: `"Stale session ID [...], creating new session"`
+
 **Common Debug Commands:**
 ```bash
 # Check service status
@@ -120,11 +135,15 @@ docker compose ps
 docker compose logs mcp-server
 docker compose logs app
 
-# Test MCP connectivity
+# Test MCP connectivity and troubleshoot
 claude mcp list
+claude mcp remove tiger-slack && just setup-tiger-slack-mcp  # Fix stale sessions
 
 # Database connectivity
 just psql
+
+# Monitor traces in real-time
+# In Claude Code: "Show me recent traces from the MCP server"
 ```
 
 ## Security Considerations
