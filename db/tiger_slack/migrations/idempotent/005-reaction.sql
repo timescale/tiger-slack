@@ -25,7 +25,7 @@ as $func$
     update slack.message set reactions = 
       jsonb_path_query_array
       ( reactions
-      , '$[*] ? (!(@.user == $user && @.reaction == $reaction))'
+      , '$[*] ? (!(@.user_id == $user_id && @.reaction == $reaction))'
       , jsonb_build_object
         ( 'user_id', _event->>'user'
         , 'reaction', _event->>'reaction'
