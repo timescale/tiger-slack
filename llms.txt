@@ -1,0 +1,89 @@
+# Tiger Slack
+
+Tiger Slack is an AI-powered Slack analytics platform that transforms workplace conversations into an intelligent, queryable knowledge base. It enables AI assistants to analyze team communications, track discussions, and surface insights from Slack workspace data.
+
+## What it does
+
+Tiger Slack captures real-time Slack conversations and stores them in a time-series database (TimescaleDB), then provides AI-accessible APIs through the Model Context Protocol (MCP). This allows AI assistants like Claude to:
+
+- Search conversations intelligently with natural language queries
+- Analyze communication patterns and team dynamics  
+- Surface insights from historical discussions
+- Track project evolution through message threads
+- Find expertise by analyzing who discusses what topics
+
+## Architecture
+
+The system consists of three main components:
+
+1. **Ingest Service** (Python): Real-time data pipeline that connects to Slack via WebSocket, captures messages/reactions/user changes, imports historical data from exports, and runs scheduled synchronization jobs.
+
+2. **TimescaleDB Database**: Time-series PostgreSQL database optimized for high-throughput message ingestion and efficient time-based queries, with hypertable partitioning for performance.
+
+3. **MCP Server** (TypeScript): Implements Model Context Protocol to provide AI-accessible APIs for Slack data analysis, including channel/user browsing, conversation retrieval with threading context, and permalink generation.
+
+## Key capabilities
+
+- Real-time Slack event ingestion via Socket Mode
+- Historical data import from Slack workspace exports
+- Thread-aware conversation analysis preserving reply relationships
+- User activity tracking across the entire workspace
+- Full-text search across message content
+- Automatic user/channel synchronization
+- Comprehensive observability through Logfire integration
+
+## Database schema
+
+- `slack.message`: TimescaleDB hypertable for time-series message storage, partitioned by timestamp
+- `slack.user`: Workspace users with profiles and metadata
+- `slack.channel`: Channel metadata and configuration
+- `slack.event`: Raw Slack events for audit trail and debugging
+
+## APIs provided
+
+The MCP server exposes these tools for AI assistants:
+
+- `getChannels`: List workspace channels with optional keyword filtering
+- `getUsers`: List workspace users with profile information and search
+- `getRecentConversationsInChannel`: Fetch recent messages from a specific channel
+- `getRecentConversationsWithUser`: Find conversations involving a specific user
+- `getThreadMessages`: Retrieve all messages in a specific thread
+- `getMessageContext`: Get contextual messages around a specific message
+
+## Technology stack
+
+- Backend: Python (asyncio), TypeScript (Node.js)
+- Database: TimescaleDB (PostgreSQL extension for time-series data)
+- AI Integration: Model Context Protocol (MCP)
+- Observability: Logfire, OpenTelemetry
+- Infrastructure: Docker Compose for local development
+- Build Tools: UV (Python), npm (Node.js)
+
+## Use cases
+
+- Intelligent conversation search: "Find all discussions about the API redesign from last month"
+- Team analytics: "Which channels are most active during sprint planning?"
+- Project insights: "Track how the database migration discussion evolved"
+- Expertise discovery: "Who knows the most about our authentication system?"
+- Decision tracking: "Show me the decision-making process for the new feature"
+
+## Getting started
+
+1. Clone repository and configure Slack API credentials in .env file
+2. Start services with `docker compose up -d`
+3. Connect AI assistant via MCP: `claude mcp add -s project --transport http tiger-slack http://localhost:3000/mcp`
+4. Optionally import historical data from Slack workspace export
+5. Begin querying: "Show me recent conversations in #engineering"
+
+## Repository structure
+
+```
+tiger-slack/
+├── ingest/           # Python ingestion service
+├── mcp/             # TypeScript MCP server
+├── docker-compose.yml
+├── .env.sample      # Configuration template
+└── README.md        # Detailed documentation
+```
+
+The project enables teams to unlock the intelligence hidden in their Slack conversations through AI-powered analysis and natural language queries.
