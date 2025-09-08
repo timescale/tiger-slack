@@ -1,198 +1,173 @@
-# Tiger Slack Development Guidelines
+# Tiger Slack - AI-Powered Slack Analytics Platform
 
-## Project Overview
+This project provides AI-accessible Slack workspace analytics through real-time data ingestion, TimescaleDB storage, and MCP (Model Context Protocol) integration for Claude Code.
 
-This is a Slack integration project with TimescaleDB backend and MCP server for AI interaction. The project consists of:
+## Architecture Overview
 
-- **Python app** (`db/`): Slack event processing and data ingestion with Logfire observability
-- **TypeScript MCP server** (`mcp/`): AI-accessible API for Slack data queries
-- **Docker Compose**: Local development environment
-- **Git submodules**: MCP boilerplate dependency
+- **`ingest/`** - Python service for real-time Slack event ingestion and historical data import
+- **`mcp/`** - TypeScript MCP server providing AI-accessible APIs for Slack data analysis  
+- **TimescaleDB** - Time-series database optimized for Slack message storage and analytics
+- **Docker Compose** - Local development environment with all services
 
-## Architecture & Technology Stack
+## Development Commands
 
-- **Database**: TimescaleDB (PostgreSQL + TimescaleDB extension)
-- **Python**: uv package manager, Logfire for observability, psycopg for database
-- **TypeScript**: Node.js 22, OpenTelemetry for tracing, Express for HTTP
-- **Observability**: Logfire (Pydantic's observability platform)
-- **Development**: Docker Compose, just command runner
-- **AI Integration**: MCP (Model Context Protocol) for Claude Code
-
-## Build & Development Commands
-
-**Service Management:**
-- `just up` - Start all Docker services
-- `just down` - Stop services
-- `just build` - Build/rebuild containers
-- `just logs` - View service logs
-- `just psql` - Connect to database
-- `just reset` - Full reset: stop containers, remove volumes, restart fresh
-
-**Data Population:**
-- `just load-data` - Load current users and channels from Slack API (runs in container)
-- `just import-history /path/to/slack-export/` - Import historical Slack export data (runs on host)
-
-**MCP Setup:**
-- `just setup-tiger-slack-mcp` - Setup Tiger Slack MCP via HTTP transport (no secrets)
-- `just setup-logfire-mcp` - Setup Logfire MCP using official command
-
-**Development:**
-- TypeScript: `cd mcp && npm run build && npm run start`
-- Python: Located in `db/` with uv package management
-
-## Code Style & Conventions
-
-**Python (db/):**
-- Use `uv` for dependency management
-- Follow Logfire instrumentation patterns
-- Use async/await for database operations
-- Type hints required for all functions
-- Use psycopg for PostgreSQL connections
-
-**TypeScript (mcp/):**
-- Use ES modules with `.js` extensions in imports
-- Strict TypeScript typing required
-- Follow OpenTelemetry instrumentation patterns
-- Use Express for HTTP server
-- 2-space indentation, trailing commas
-
-**Docker & Infrastructure:**
-- Multi-stage Docker builds preferred
-- Environment variables for configuration
-- HTTP-based MCP transport (secrets stay in containers)
-- Project-scoped MCP configuration
-- No secrets in git (use .env files)
-- **NODE_ENV=production** in containers for performance optimization
-- **LOGFIRE_ENVIRONMENT** for logical trace organization (separate from NODE_ENV)
-
-## Environment Configuration
-
-**Required Environment Variables:**
+### Service Management
 ```bash
+just up              # Start all services (TimescaleDB, ingest, MCP server)
+just down            # Stop all services  
+just logs            # View service logs
+just restart         # Restart all services
+just reset           # Reset with fresh volumes
+just nuclear-reset   # Complete rebuild (destroys all data)
+```
+
+### Database Access
+```bash
+just psql            # Connect to TimescaleDB via psql
+```
+
+### MCP Integration Setup
+```bash
+just setup-logfire-mcp        # Add Logfire MCP to Claude Code
+just setup-tiger-slack-mcp    # Add Tiger Slack MCP to Claude Code
+```
+
+## Service-Specific Commands
+
+### Ingest Service (`ingest/`)
+```bash
+cd ingest/
+just deps                    # Install/sync dependencies
+just run                     # Run ingest service locally
+just migrate                 # Run database migrations
+just jobs                    # Run scheduled sync jobs manually
+just import /path/to/export  # Import Slack workspace export
+just lint && just format    # Code quality checks
+just build-image             # Build Docker image
+```
+
+### MCP Server (`mcp/`)
+```bash
+cd mcp/
+npm run build               # Build TypeScript to JavaScript
+npm run watch               # Watch for changes and rebuild automatically
+npm run start               # Start MCP server using stdio transport
+npm run prepare             # Build project for publishing
+npm run inspector           # Test with MCP Inspector
+```
+
+## Configuration
+
+### Required Environment Variables (.env)
+```bash
+# Slack API credentials
 SLACK_BOT_TOKEN="xoxb-..."
 SLACK_APP_TOKEN="xapp-..."
-SLACK_DOMAIN="workspace-name"
-LOGFIRE_TOKEN="pylf_..."  # Write token for sending traces/logs
-LOGFIRE_READ_TOKEN="pylf_..."  # Read token for Claude Code MCP queries
-LOGFIRE_ENVIRONMENT="dev-john"  # Logical environment for trace organization
-LOGFIRE_TRACES_ENDPOINT="https://logfire-api.pydantic.dev/v1/traces"
-LOGFIRE_LOGS_ENDPOINT="https://logfire-api.pydantic.dev/v1/logs"
+SLACK_DOMAIN="your-workspace"
+
+# Database connection
+DATABASE_URL="postgres://postgres@localhost:5432/tiger_slack"
+
+# Logfire observability
+LOGFIRE_TOKEN="pylf_..."           # Write token for traces/logs
+LOGFIRE_READ_TOKEN="pylf_..."      # Read token for Claude Code MCP
+LOGFIRE_ENVIRONMENT="development"
 ```
 
-**File Structure:**
-- `.env` - Local environment variables (ignored by git)
-- `.env.sample` - Template for environment setup
-- `.mcp.json` - Active MCP configuration (ignored by git)
-- `.claude/` - MCP configuration templates (can be committed)
+## Key Features
 
-## Git Submodules
+### Real-Time Data Pipeline
+- Socket Mode connection for live Slack events
+- Message ingestion with threading and reactions
+- Daily user/channel synchronization jobs
+- Historical data import from workspace exports
 
-This project uses git submodules for MCP boilerplate:
-- **Location**: `mcp/src/shared/boilerplate`
-- **Repository**: `git@github.com:timescale/mcp-boilerplate-node`
-- **Commands**: `git submodule update --init --recursive`
+### AI-Accessible Analytics
+- Channel and user browsing with search
+- Recent conversation analysis with threading context
+- User activity tracking across workspace
+- Message thread exploration
+- Automatic permalink generation
 
-## Testing & Verification
-
-**MCP Server Testing:**
-1. Start services: `just up`
-2. Load data: `just load-data` (or `just import-history /path/to/export/`)
-3. Setup MCP servers: `just setup-tiger-slack-mcp && just setup-logfire-mcp`
-4. Test in Claude Code: Ask "What Slack channels are available?"
-5. Verify traces in Logfire dashboard
-
-**Database Testing:**
-- Use `just psql` for direct database access
-- Check Docker logs: `just logs`
-- Reset environment: `just reset`
-
-## Observability & Debugging
-
-**Logfire Integration:**
-- Both Python and TypeScript send traces to Logfire
-- Database queries, HTTP requests, and MCP calls are traced
-- Real-time observability for debugging and performance monitoring
-
-**Environment Configuration:**
-- **Python App**: Uses `LOGFIRE_ENVIRONMENT` from `.env` file
-- **MCP Server**: Inherits `LOGFIRE_ENVIRONMENT` via Docker Compose + `NODE_ENV=production` for container optimization
-- **Instrumentation**: Requires `INSTRUMENT=true` environment variable to enable OpenTelemetry
-- **Service Names**: `tiger-slack` (Python) and `tiger-slack-mcp` (TypeScript)
-- **Trace Correlation**: Both services use the same Logfire environment for unified observability
-
-**MCP Session Handling:**
-- HTTP transport handles stale session IDs automatically (server restart resilience)
-- Session cleanup prevents memory leaks during container restarts
-- Both HTTP and stdio transports supported (HTTP recommended for containerized deployments)
-- Session state logs help debug connection issues: `"Stale session ID [...], creating new session"`
-
-**Common Debug Commands:**
-```bash
-# Check service status
-docker compose ps
-
-# View specific service logs
-docker compose logs mcp-server
-docker compose logs app
-
-# Test MCP connectivity and troubleshoot
-claude mcp list
-claude mcp remove tiger-slack && just setup-tiger-slack-mcp  # Fix stale sessions
-
-# Database connectivity
-just psql
-
-# Monitor traces in real-time
-# In Claude Code: "Show me recent traces from the MCP server"
-```
-
-## Security Considerations
-
-- Never commit `.env` files (contain secrets)
-- `.mcp.json` contains no secrets (uses HTTP transport to containers)
-- HTTP MCP transport keeps all credentials in Docker environment
-- Use project-scoped MCP configuration for team development
-- Logfire tokens should be kept secure in `.env` only
-- Database uses trust authentication for local development only
+### Observability & Monitoring
+- Full Logfire instrumentation across all services
+- Database query performance monitoring
+- Real-time error tracking and debugging
+- Claude Code integration for AI-powered log analysis
 
 ## Database Schema
 
-**Key Tables:**
-- `slack.user` - Slack workspace users
-- `slack.channel` - Slack channels (public/private)
-- `slack.message` - All messages with threading support
-- `slack.version` - Database schema version for migrations
+- **`slack.message`** - TimescaleDB hypertable for time-series message storage
+- **`slack.user`** - Workspace users with profiles
+- **`slack.channel`** - Channel metadata and configuration
+- **`slack.event`** - Raw Slack events for audit trail
 
-**Important Column Names:**
-- `slack.user.user_name` - Slack username (not `name`)
-- `slack.channel.channel_name` - Channel name (not `name`)  
-- `slack.message.user_id` - Message author ID (not `user`)
-- `slack.message.channel_id` - Channel ID (not `channel`)
+## Development Workflow
 
-**Schema Evolution:**
-- Database migrations run automatically on app startup
-- MCP server queries updated to match current schema (v0.0.1)
-- All SQL queries in TypeScript use correct column names
-- Historical data imports handle schema correctly
+1. **Setup**: Copy `.env.sample` to `.env` and configure credentials
+2. **Start Services**: `just up` to launch TimescaleDB, ingest, and MCP server
+3. **Verify Setup**: `just logs` to check service health
+4. **Connect Claude**: `just setup-tiger-slack-mcp` for AI access
+5. **Import Data**: `just import /path/to/slack-export` for historical analysis
 
-## Deployment Notes
+## Testing & Quality
 
-- MCP server runs on port 3000 (mapped from internal 3001)
-- Database accessible on localhost:5432
-- All services configured for Logfire observability
-- Git submodules must be initialized in deployment environments
+### Ingest Service
+- Ruff for linting and formatting (`just lint`, `just format`)
+- Database migration testing (`just migrate`)
+- Docker build verification (`just build-image`)
 
-## Integration Points
+### MCP Server  
+- TypeScript compilation (`npm run build`)
+- MCP Inspector testing (`npm run inspector`)
+- Integration testing via Claude Code
 
-**Claude Code Integration:**
-- Uses HTTP MCP transport to containerized server
-- Connects to `http://localhost:3000/mcp` (no secrets in Claude config)
-- Provides Slack data access tools via HTTP API
-- Generates Logfire traces for observability
-- Project-scoped configuration for team use
+#### Code Style Guidelines
+- Use ES modules with `.js` extension in import paths
+- Strictly type all functions and variables with TypeScript
+- Follow zod schema patterns for tool input validation
+- Prefer async/await over callbacks and Promise chains
+- Use camelCase for variables/functions, PascalCase for types/classes, UPPER_CASE for constants
+- Handle errors with try/catch blocks and provide clear error messages
 
-**Slack Integration:**
-- Python app processes Slack events
-- Stores data in TimescaleDB
-- MCP server provides AI-accessible queries
-- Permalink generation for message links
+## Common Tasks
+
+### Analyze Recent Conversations
+Ask Claude: "Show me recent conversations in #engineering channel"
+
+### Track User Activity
+Ask Claude: "Find all conversations with @john from the last week"
+
+### Debug Issues
+Ask Claude: "Are there any errors in the ingest service logs?"
+
+### Performance Monitoring
+Ask Claude: "What's the database query performance for message ingestion?"
+
+## Troubleshooting
+
+### Service Issues
+```bash
+just logs              # Check service logs
+just restart           # Restart problematic services
+just nuclear-reset     # Full environment rebuild
+```
+
+### Database Issues
+```bash
+just psql              # Direct database access
+cd ingest && just migrate  # Manual migration run
+```
+
+### MCP Connection Issues
+```bash
+just setup-tiger-slack-mcp    # Re-setup MCP server
+cd mcp && npm run inspector   # Test MCP functionality
+```
+
+## Security Notes
+
+- Database user `readonly_mcp_user` for MCP server (read-only access)
+- Logfire tokens separate for write (ingest) and read (Claude Code)
+- Slack tokens require appropriate bot scopes for workspace access
+- No secrets stored in MCP configuration (uses containerized HTTP transport)
