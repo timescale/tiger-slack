@@ -60,6 +60,8 @@ Python-based real-time data pipeline that:
 - Runs scheduled jobs for user/channel synchronization
 - Provides comprehensive observability through Logfire
 
+See the [ingest README.md](/ingest/README.md) for more details.
+
 ### 🗄️ **TimescaleDB Database**
 Time-series PostgreSQL database optimized for:
 - High-throughput message ingestion
@@ -74,6 +76,8 @@ TypeScript server implementing Model Context Protocol to provide:
 - Conversation retrieval with full threading context
 - Message permalink generation
 - Real-time performance monitoring
+
+See the [mcp README.md](/mcp/README.md) for more details.
 
 ### 📊 **Observability Stack**
 Full-stack monitoring through Logfire integration:
