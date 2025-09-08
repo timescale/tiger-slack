@@ -19,7 +19,7 @@ load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
 
 logfire.configure(
-    service_name=os.getenv("SERVICE_NAME", "tiger-slack"),
+    service_name=os.getenv("SERVICE_NAME", "tiger-slack-ingest"),
     service_version=__version__,
 )
 logfire.instrument_psycopg()

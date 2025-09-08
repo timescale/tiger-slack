@@ -1,15 +1,13 @@
 # Tiger Slack MCP Server
 
-A wrapper around our Slack database, to provide some focused tools to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io/introduction).
-
-See [slack-db](https://github.com/timescale/slack-db/) for details on how the database is populated.
+A wrapper around the Slack database, to provide some focused tools to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io/introduction).
 
 ## Development
 
 Cloning and running the server locally.
 
 ```bash
-git clone --recurse-submodules git@github.com:timescale/tiger-slack-mcp-server.git
+git clone --recurse-submodules git@github.com:timescale/tiger-slack.git
 ```
 
 ### Submodules
