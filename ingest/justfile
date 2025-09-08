@@ -5,7 +5,7 @@ default:
     @just --list
 
 # Install dependencies
-install:
+deps:
     uv sync
 
 # Run the main ingest application
@@ -47,30 +47,30 @@ clean:
     find . -name "*.pyo" -delete
     find . -name "__pycache__" -type d -exec rm -rf {} +
 
-# Check code formatting with ruff
-check:
+# Run ruff linter checks
+lint:
     uv run ruff check .
 
-# Format code with ruff
-format:
-    uv run ruff format .
+# Run ruff linter checks and fix all auto-fixable issues
+lint-fix:
+    uv run ruff check . --fix
 
-# Run type checking with mypy (if available)
-typecheck:
-    uv run mypy tiger_slack/ || echo "mypy not configured"
+# Check formatting of the python source files (diff only)
+format:
+    uv run ruff format --diff .
+
+# Format python source files and fix all auto-fixable issues
+format-fix:
+    uv run ruff format .
 
 # Show package version
 version:
     uv run python -c "from tiger_slack import __version__; print(__version__)"
-
-# Development server with auto-reload (if supported)
-dev:
-    uv run python -m tiger_slack.main
 
 # Build package wheel
 build-wheel:
     uv build
 
 # Show dependency tree
-deps:
+tree:
     uv tree

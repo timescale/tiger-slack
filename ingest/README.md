@@ -386,3 +386,82 @@ uv run python -m tiger_slack.migrations.runner
 # Migrations also run automatically when starting the main app
 uv run python -m tiger_slack.main
 ```
+
+## Development
+
+### Getting Started
+
+The ingest service includes a comprehensive `justfile` for development tasks. All commands should be run from the `ingest/` directory.
+
+#### Initial Setup
+```bash
+# Navigate to ingest directory
+cd ingest/
+
+# Install dependencies (including dev dependencies like ruff)
+just deps
+
+# Check available commands
+just --list
+```
+
+#### Development Workflow
+
+1. **Setup and Dependencies**
+   ```bash
+   just deps          # Install/sync all dependencies
+   just tree          # Show dependency tree
+   ```
+
+2. **Code Quality Checks**
+   ```bash
+   just lint          # Run ruff linter checks
+   just format        # Check formatting (diff preview)
+   just lint-fix      # Fix auto-fixable linting issues  
+   just format-fix    # Apply code formatting
+   ```
+
+3. **Running the Application**
+   ```bash
+   just run           # Run the main ingest application
+   just migrate       # Run database migrations only
+   just jobs          # Run scheduled jobs manually
+   ```
+
+4. **Historical Data Import**
+   ```bash
+   just import /path/to/slack-export/  # Import Slack export data
+   ```
+
+5. **Docker Operations**
+   ```bash
+   just build-image                    # Build Docker image
+   just docker-run                     # Build and run with Docker
+   just docker-run-env                 # Run with environment file
+   ```
+
+6. **Utilities**
+   ```bash
+   just version       # Show package version
+   just build-wheel   # Build Python wheel
+   just clean         # Clean build artifacts
+   ```
+
+### Recommended Development Flow
+
+1. **Start new work**: `just deps` to ensure dependencies are current
+2. **Code changes**: Make your modifications
+3. **Quality checks**: `just lint` and `just format` to check for issues
+4. **Fix issues**: `just lint-fix` and `just format-fix` to auto-fix
+5. **Test locally**: `just run` to test the application
+6. **Build verification**: `just build-image` to ensure Docker build works
+
+### Code Quality Standards
+
+The project uses ruff for both linting and formatting with the following configuration:
+- **Line length**: 88 characters
+- **Linting rules**: pycodestyle, Pyflakes, pyupgrade, flake8-bugbear, isort, and more
+- **Auto-formatting**: Enabled with docstring code formatting
+- **Type checking**: Available via mypy (if configured)
+
+All code should pass `just lint` and `just format` checks before committing.
