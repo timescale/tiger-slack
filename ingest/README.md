@@ -48,6 +48,12 @@ The app is structured around several key modules:
 - **`import.py`**: Historical data import from Slack export files
 - **Database Layer**: TimescaleDB with dedicated `slack` schema for optimized time-series storage
 
+### Running the Ingest Service
+
+```bash
+uv run python -m tiger_slack.main
+```
+
 ### Database Schema
 
 The application uses a dedicated `slack` schema in TimescaleDB with the following core tables:

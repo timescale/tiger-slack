@@ -128,6 +128,14 @@ Full-stack monitoring through Logfire integration:
 5. **Start Analyzing**
    Ask Claude: *"Show me recent conversations in #engineering"*
 
+## Suggested Roll-out Strategy
+
+1. First, use a [manual execution of the user/channel jobs](/ingest/README.md#manual-job-execution) to create the database schema and populate the users and channels.
+2. [Deploy the ingest service](/ingest/README.md#running-the-ingest-service) to begin accumulating Slack events in real-time.
+3. At some point after you have begun accumulating new Slack events in real time, get a historical export from Slack and load it with [the import process](/ingest/README.md#historical-data-import).
+
+This strategy ensures no gaps in data.
+
 ## Docker Management
 
 ### Service Lifecycle
