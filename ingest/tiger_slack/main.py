@@ -4,16 +4,16 @@ import signal
 from typing import Any
 
 import aiocron
-from dotenv import load_dotenv, find_dotenv
 import logfire
+from dotenv import find_dotenv, load_dotenv
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 from slack_bolt.adapter.socket_mode.websockets import AsyncSocketModeHandler
 from slack_bolt.app.async_app import AsyncApp
 
 from tiger_slack import __version__, jobs
-from tiger_slack.migrations.runner import migrate_db
 from tiger_slack.events import register_handlers
+from tiger_slack.migrations.runner import migrate_db
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
@@ -26,14 +26,16 @@ logfire.instrument_psycopg()
 logfire.instrument_pydantic_ai()
 logfire.instrument_mcp()
 logfire.instrument_httpx()
-logfire.instrument_system_metrics({
-    'process.cpu.time': ['user', 'system'],
-    'process.cpu.utilization': None,
-    'process.cpu.core_utilization': None,
-    'process.memory.usage': None,
-    'process.memory.virtual': None,
-    'process.thread.count': None,
-})
+logfire.instrument_system_metrics(
+    {
+        "process.cpu.time": ["user", "system"],
+        "process.cpu.utilization": None,
+        "process.cpu.core_utilization": None,
+        "process.memory.usage": None,
+        "process.memory.virtual": None,
+        "process.thread.count": None,
+    }
+)
 
 
 def shutdown_handler(signum: int, _frame: Any):
@@ -46,11 +48,11 @@ def shutdown_handler(signum: int, _frame: Any):
 
 def exception_handler(_, context):
     with logfire.span("asyncio loop exception") as _:
-        exception = context.get('exception')
+        exception = context.get("exception")
         if exception:
-            logfire.error('asyncio task failed', _exc_info=exception, **context)
+            logfire.error("asyncio task failed", _exc_info=exception, **context)
         else:
-            logfire.error('asyncio task failed', **context)
+            logfire.error("asyncio task failed", **context)
 
 
 async def configure_database_connection(con: AsyncConnection) -> None:
@@ -65,16 +67,20 @@ async def main() -> None:
     database_url = os.getenv("DATABASE_URL")
     assert database_url is not None, "DATABASE_URL environment variable is missing!"
     slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
-    assert slack_bot_token is not None, "SLACK_BOT_TOKEN environment variable is missing!"
+    assert slack_bot_token is not None, (
+        "SLACK_BOT_TOKEN environment variable is missing!"
+    )
     slack_app_token = os.getenv("SLACK_APP_TOKEN")
-    assert slack_app_token is not None, "SLACK_APP_TOKEN environment variable is missing!"
-    
+    assert slack_app_token is not None, (
+        "SLACK_APP_TOKEN environment variable is missing!"
+    )
+
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
-    
+
     loop = asyncio.get_running_loop()
     loop.set_exception_handler(exception_handler)
-    
+
     async with AsyncConnectionPool(
         database_url,
         check=AsyncConnectionPool.check_connection,
@@ -91,16 +97,16 @@ async def main() -> None:
             ignoring_self_events_enabled=False,
         )
 
-        @aiocron.crontab('0 1 * * *')
+        @aiocron.crontab("0 1 * * *")
         async def daily_user_job() -> None:
             await jobs.load_users(app.client, pool)
 
-        @aiocron.crontab('0 1 * * *')
+        @aiocron.crontab("0 1 * * *")
         async def daily_channel_job() -> None:
             await jobs.load_channels(app.client, pool)
 
         handler = AsyncSocketModeHandler(app, slack_app_token)
-        
+
         async with asyncio.TaskGroup() as tasks:
             await register_handlers(app, pool)
             tasks.create_task(handler.start_async())

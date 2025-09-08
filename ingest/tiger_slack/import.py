@@ -1,15 +1,15 @@
 import asyncio
 import json
 import os
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
 
 import click
 import logfire
 import psycopg
-from dotenv import load_dotenv, find_dotenv
-from psycopg_pool import AsyncConnectionPool
+from dotenv import find_dotenv, load_dotenv
 from psycopg.types.json import Jsonb
+from psycopg_pool import AsyncConnectionPool
 
 from tiger_slack import __version__
 from tiger_slack.migrations.runner import migrate_db
@@ -28,10 +28,7 @@ assert database_url is not None, "DATABASE_URL environment variable is missing!"
 
 @logfire.instrument("get_channel_name_to_id_mapping", extract_args=False)
 async def get_channel_name_to_id_mapping(pool: AsyncConnectionPool) -> dict[str, str]:
-    async with (
-        pool.connection() as con,
-        con.cursor() as cur
-    ):
+    async with pool.connection() as con, con.cursor() as cur:
         await cur.execute("""\
             select
               channel_name
@@ -42,10 +39,14 @@ async def get_channel_name_to_id_mapping(pool: AsyncConnectionPool) -> dict[str,
 
 
 @logfire.instrument("channel_dirs", extract_args=["directory"])
-async def channel_dirs(pool: AsyncConnectionPool, directory: Path) -> list[tuple[Path, str]]:
+async def channel_dirs(
+    pool: AsyncConnectionPool, directory: Path
+) -> list[tuple[Path, str]]:
     name_to_id = await get_channel_name_to_id_mapping(pool)
     dirs = []
-    for d in [d for d in directory.iterdir() if d.is_dir() and not d.name.startswith("FC:")]:
+    for d in [
+        d for d in directory.iterdir() if d.is_dir() and not d.name.startswith("FC:")
+    ]:
         channel_name = d.name
         channel_id = name_to_id.get(channel_name)
         if channel_id is None:
@@ -56,9 +57,13 @@ async def channel_dirs(pool: AsyncConnectionPool, directory: Path) -> list[tuple
     return dirs
 
 
-async def channel_files(pool: AsyncConnectionPool, directory: Path) -> AsyncGenerator[tuple[str, Path, str], None]:
+async def channel_files(
+    pool: AsyncConnectionPool, directory: Path
+) -> AsyncGenerator[tuple[str, Path, str]]:
     for channel_dir, channel_id in await channel_dirs(pool, directory):
-        with logfire.span("load_messages_for_channel", channel_dir=channel_dir, channel_id=channel_id) as _:
+        with logfire.span(
+            "load_messages_for_channel", channel_dir=channel_dir, channel_id=channel_id
+        ) as _:
             for file in channel_dir.glob("*.json"):
                 yield channel_id, file, file.read_text()
 
@@ -66,40 +71,42 @@ async def channel_files(pool: AsyncConnectionPool, directory: Path) -> AsyncGene
 @logfire.instrument("load_users_from_file", extract_args=["file_path"])
 async def load_users_from_file(pool: AsyncConnectionPool, file_path: Path) -> None:
     try:
-        async with (
-            pool.connection() as con,
-            con.cursor() as cur
-        ):
+        async with pool.connection() as con, con.cursor() as cur:
             with logfire.span("reading_users_file"):
                 users_data = json.loads(file_path.read_text())
-            
+
             with logfire.span("loading_users", num_users=len(users_data)):
                 for user in users_data:
                     async with con.transaction() as _:
                         event = {"user": user}
-                        await cur.execute("select * from slack.upsert_user(%s)", (Jsonb(event),))
+                        await cur.execute(
+                            "select * from slack.upsert_user(%s)", (Jsonb(event),)
+                        )
     except Exception as e:
-        logfire.exception("failed to load users from file", file_path=file_path, error=str(e))
+        logfire.exception(
+            "failed to load users from file", file_path=file_path, error=str(e)
+        )
         raise
 
 
 @logfire.instrument("load_channels_from_file", extract_args=["file_path"])
 async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) -> None:
     try:
-        async with (
-            pool.connection() as con,
-            con.cursor() as cur
-        ):
+        async with pool.connection() as con, con.cursor() as cur:
             with logfire.span("reading_channels_file"):
                 channels_data = json.loads(file_path.read_text())
-            
+
             with logfire.span("loading_channels", num_channels=len(channels_data)):
                 for channel in channels_data:
                     async with con.transaction() as _:
                         event = {"channel": channel}
-                        await cur.execute("select * from slack.upsert_channel(%s)", (Jsonb(event),))
+                        await cur.execute(
+                            "select * from slack.upsert_channel(%s)", (Jsonb(event),)
+                        )
     except Exception as e:
-        logfire.exception("failed to load channels from file", file_path=file_path, error=str(e))
+        logfire.exception(
+            "failed to load channels from file", file_path=file_path, error=str(e)
+        )
         raise
 
 
@@ -177,7 +184,9 @@ on conflict (ts, channel_id) do nothing
 """
 
 
-async def load_messages_from_file(pool: AsyncConnectionPool, channel_id: str, file: Path, json: str) -> None:
+async def load_messages_from_file(
+    pool: AsyncConnectionPool, channel_id: str, file: Path, content: str
+) -> None:
     async with (
         pool.connection() as con,
         con.cursor() as cur,
@@ -185,50 +194,56 @@ async def load_messages_from_file(pool: AsyncConnectionPool, channel_id: str, fi
         try:
             async with con.transaction() as _:
                 with logfire.suppress_instrumentation():
-                    await cur.execute(MESSAGE_SQL, dict(channel_id=channel_id, json=json))
+                    await cur.execute(
+                        MESSAGE_SQL, dict(channel_id=channel_id, json=content)
+                    )
         except psycopg.Error as e:
-            logfire.exception("failed to load json file", channel_id=channel_id, file=file, error=str(e))
+            logfire.exception(
+                "failed to load json file",
+                channel_id=channel_id,
+                file=file,
+                error=str(e),
+            )
             raise
 
 
 @logfire.instrument("load_messages", extract_args=["directory"])
 async def load_messages(pool: AsyncConnectionPool, directory: Path) -> None:
-    async for channel_id, file, json in channel_files(pool, directory):
-        await load_messages_from_file(pool, channel_id, file, json)
+    async for channel_id, file, content in channel_files(pool, directory):
+        await load_messages_from_file(pool, channel_id, file, content)
 
 
 @logfire.instrument("run_import")
 async def run_import(directory: Path):
-    async with AsyncConnectionPool(
-            database_url,
-            min_size=1,
-            max_size=1
-    ) as pool:
+    async with AsyncConnectionPool(database_url, min_size=1, max_size=1) as pool:
         await pool.wait()
-        
+
         async with pool.connection() as con:
             await migrate_db(con)
-        
+
         # Load users from users.json file
         users_file = directory / "users.json"
         if users_file.exists():
             await load_users_from_file(pool, users_file)
         else:
             logfire.warning("users.json not found in directory", directory=directory)
-        
+
         # Load channels from channels.json file
         channels_file = directory / "channels.json"
         if channels_file.exists():
             await load_channels_from_file(pool, channels_file)
         else:
             logfire.warning("channels.json not found in directory", directory=directory)
-        
+
         # Import message history from channel subdirectories
         await load_messages(pool, directory)
 
 
 @click.command()
-@click.argument('directory', type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+@click.argument(
+    "directory",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+)
 def main(directory: Path):
     asyncio.run(run_import(directory))
 

@@ -1,6 +1,6 @@
 import asyncio
 import traceback
-from typing import Any, Optional
+from typing import Any
 
 import logfire
 import psycopg
@@ -8,7 +8,6 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from slack_bolt.app.async_app import AsyncApp
 from slack_bolt.context.ack.async_ack import AsyncAck
-
 
 _agent_trigger = asyncio.Queue()
 
@@ -106,8 +105,11 @@ async def remove_reaction(pool: AsyncConnectionPool, event: dict[str, Any]) -> N
     ):
         await cur.execute("select slack.remove_reaction(%s)", (Jsonb(event),))
 
+
 @logfire.instrument("insert_event", extract_args=False)
-async def insert_event(pool: AsyncConnectionPool, event: dict[str, Any], error: Optional[dict[str, Any]]) -> None:
+async def insert_event(
+    pool: AsyncConnectionPool, event: dict[str, Any], error: dict[str, Any] | None
+) -> None:
     try:
         async with (
             pool.connection() as con,
@@ -115,8 +117,7 @@ async def insert_event(pool: AsyncConnectionPool, event: dict[str, Any], error: 
             con.cursor() as cur,
         ):
             await cur.execute(
-                "select slack.insert_event(%s, %s)",
-                (Jsonb(event), Jsonb(error))
+                "select slack.insert_event(%s, %s)", (Jsonb(event), Jsonb(error))
             )
     except Exception as _:
         logfire.exception("failed to insert event", **event)
@@ -141,9 +142,9 @@ async def event_router(pool: AsyncConnectionPool, event: dict[str, Any]) -> None
                 case "message_deleted":
                     await delete_message(pool, event)
                 case _:
-                    logfire.warning(f"unrouted event", **event)
+                    logfire.warning("unrouted event", **event)
         case _:
-            logfire.warning(f"unrouted event", **event)
+            logfire.warning("unrouted event", **event)
 
 
 async def register_handlers(app: AsyncApp, pool: AsyncConnectionPool) -> None:
@@ -151,7 +152,7 @@ async def register_handlers(app: AsyncApp, pool: AsyncConnectionPool) -> None:
         event_type = event.get("type")
         with logfire.span(event_type) as _:
             await ack()
-            error: Optional[dict[str, Any]] = None
+            error: dict[str, Any] | None = None
             try:
                 await event_router(pool, event)
             except psycopg.Error as pge:
@@ -159,9 +160,9 @@ async def register_handlers(app: AsyncApp, pool: AsyncConnectionPool) -> None:
                 logfire.exception(f"exception processing {event_type} event", **event)
             except Exception as e:
                 error = {
-                    'type': type(e).__name__,
-                    'message': str(e),
-                    'traceback': traceback.format_exc(),
+                    "type": type(e).__name__,
+                    "message": str(e),
+                    "traceback": traceback.format_exc(),
                 }
                 logfire.exception(f"exception processing {event_type} event", **event)
             finally:

@@ -4,8 +4,8 @@ import re
 from pathlib import Path
 
 import logfire
-from semver import Version
 from psycopg import AsyncConnection, AsyncCursor
+from semver import Version
 
 from tiger_slack import __version__
 
@@ -18,12 +18,13 @@ LOCK_SLEEP_SECONDS = 10
 async def try_migration_lock(cur: AsyncCursor) -> bool:
     """Attempt to acquire transaction-level advisory lock for migration"""
     await cur.execute(
-        "select pg_try_advisory_xact_lock(%s::bigint)",
-        (SHARED_LOCK_KEY,)
+        "select pg_try_advisory_xact_lock(%s::bigint)", (SHARED_LOCK_KEY,)
     )
     row = await cur.fetchone()
     if not row:
-        raise Exception("attempting to get an advisory lock for migration failed to return a row")
+        raise Exception(
+            "attempting to get an advisory lock for migration failed to return a row"
+        )
     return bool(row[0])
 
 
@@ -48,8 +49,12 @@ async def is_migration_required(cur: AsyncCursor, target_version: Version) -> bo
     """Check if migration is required"""
     db_version = await get_db_version(cur)
     if target_version < db_version:
-        logfire.error(f"target version ({target_version}) is older than the database ({db_version})! aborting")
-        raise ValueError(f"Cannot downgrade from version {db_version} to {target_version}")
+        logfire.error(
+            f"target version ({target_version}) is older than the database ({db_version})! aborting"
+        )
+        raise ValueError(
+            f"Cannot downgrade from version {db_version} to {target_version}"
+        )
     return target_version > db_version
 
 
@@ -78,14 +83,16 @@ def check_sql_file_order(paths: list[Path]) -> None:
 
 async def run_incremental(cur: AsyncCursor, target_version: Version) -> None:
     """Run incremental migrations"""
-    migration_template = Path(__file__).parent.joinpath("sql", "migration.sql").read_text()
+    migration_template = (
+        Path(__file__).parent.joinpath("sql", "migration.sql").read_text()
+    )
     incremental = Path(__file__).parent.joinpath("incremental")
     paths = [path for path in incremental.glob("*.sql")]
     paths.sort()
     check_sql_file_order(paths)
 
     for path in paths:
-        with logfire.span(f"incremental_sql", script=path.name):
+        with logfire.span("incremental_sql", script=path.name):
             sql = migration_template.format(
                 migration_name=path.name,
                 migration_body=path.read_text(),
@@ -110,7 +117,9 @@ async def run_idempotent(cur: AsyncCursor) -> None:
 @logfire.instrument("set_version", extract_args=["version"])
 async def set_version(cur: AsyncCursor, version: Version) -> None:
     """Update database version"""
-    await cur.execute("update slack.version set version = %s, at = clock_timestamp()", (str(version),))
+    await cur.execute(
+        "update slack.version set version = %s, at = clock_timestamp()", (str(version),)
+    )
 
 
 @logfire.instrument("migrate_db", extract_args=False)
@@ -127,9 +136,13 @@ async def migrate_db(con: AsyncConnection) -> None:
             if locked:
                 break
             if i == MAX_LOCK_ATTEMPTS:
-                logfire.error(f"failed to get an advisory lock to check database version after {i} attempts")
+                logfire.error(
+                    f"failed to get an advisory lock to check database version after {i} attempts"
+                )
                 raise RuntimeError("Could not acquire migration lock")
-            logfire.info(f"sleeping {LOCK_SLEEP_SECONDS} seconds before another lock attempt")
+            logfire.info(
+                f"sleeping {LOCK_SLEEP_SECONDS} seconds before another lock attempt"
+            )
             await asyncio.sleep(LOCK_SLEEP_SECONDS)
 
         # Initialize migration infrastructure
@@ -152,7 +165,7 @@ async def migrate_db(con: AsyncConnection) -> None:
 
 async def main():
     """Run database migrations CLI"""
-    from dotenv import load_dotenv, find_dotenv
+    from dotenv import find_dotenv, load_dotenv
 
     # Load environment variables
     load_dotenv(dotenv_path=find_dotenv(usecwd=True))
