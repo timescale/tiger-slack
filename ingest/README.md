@@ -189,8 +189,8 @@ uv run python -m tiger_slack.import /path/to/slack-export-directory
 # Example:
 uv run python -m tiger_slack.import ~/Downloads/slack-export-2024-01-15/
 
-# Or use the just command from project root:
-just import-history /path/to/slack-export-directory
+# Or use the just command from ingest directory:
+cd ingest && just import /path/to/slack-export-directory
 ```
 
 ### Import Features

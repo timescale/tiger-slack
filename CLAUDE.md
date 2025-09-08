@@ -13,23 +13,26 @@ This project provides AI-accessible Slack workspace analytics through real-time 
 
 ### Service Management
 ```bash
-just up              # Start all services (TimescaleDB, ingest, MCP server)
-just down            # Stop all services  
-just logs            # View service logs
-just restart         # Restart all services
-just reset           # Reset with fresh volumes
-just nuclear-reset   # Complete rebuild (destroys all data)
+docker compose up -d          # Start all services (TimescaleDB, ingest, MCP server)
+docker compose down           # Stop all services  
+docker compose logs -f        # View service logs
+docker compose restart        # Restart all services
+docker compose down -v && docker compose up -d  # Reset with fresh volumes
+docker compose down -v --remove-orphans && docker system prune -f --volumes && docker compose up -d --build  # Complete rebuild (destroys all data)
 ```
 
 ### Database Access
 ```bash
-just psql            # Connect to TimescaleDB via psql
+psql -d "postgres://postgres@localhost:5432/tiger_slack"  # Connect to TimescaleDB via psql
 ```
 
 ### MCP Integration Setup
 ```bash
-just setup-logfire-mcp        # Add Logfire MCP to Claude Code
-just setup-tiger-slack-mcp    # Add Tiger Slack MCP to Claude Code
+# Add Logfire MCP to Claude Code (requires LOGFIRE_READ_TOKEN in .env)
+claude mcp add -s project logfire -e LOGFIRE_READ_TOKEN="your-token-here" -- uvx logfire-mcp@latest
+
+# Add Tiger Slack MCP to Claude Code
+claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp
 ```
 
 ## Service-Specific Commands
@@ -105,10 +108,10 @@ LOGFIRE_ENVIRONMENT="development"
 ## Development Workflow
 
 1. **Setup**: Copy `.env.sample` to `.env` and configure credentials
-2. **Start Services**: `just up` to launch TimescaleDB, ingest, and MCP server
-3. **Verify Setup**: `just logs` to check service health
-4. **Connect Claude**: `just setup-tiger-slack-mcp` for AI access
-5. **Import Data**: `just import /path/to/slack-export` for historical analysis
+2. **Start Services**: `docker compose up -d` to launch TimescaleDB, ingest, and MCP server
+3. **Verify Setup**: `docker compose logs -f` to check service health
+4. **Connect Claude**: `claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp` for AI access
+5. **Import Data**: `cd ingest && just import /path/to/slack-export` for historical analysis
 
 ## Testing & Quality
 
@@ -148,9 +151,9 @@ Ask Claude: "What's the database query performance for message ingestion?"
 
 ### Service Issues
 ```bash
-just logs              # Check service logs
-just restart           # Restart problematic services
-just nuclear-reset     # Full environment rebuild
+docker compose logs -f                    # Check service logs
+docker compose restart                    # Restart problematic services
+docker compose down -v --remove-orphans && docker system prune -f --volumes && docker compose up -d --build  # Full environment rebuild
 ```
 
 ### Database Issues
@@ -161,7 +164,7 @@ cd ingest && just migrate  # Manual migration run
 
 ### MCP Connection Issues
 ```bash
-just setup-tiger-slack-mcp    # Re-setup MCP server
+claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp  # Re-setup MCP server
 cd mcp && npm run inspector   # Test MCP functionality
 ```
 

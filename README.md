@@ -110,7 +110,7 @@ Full-stack monitoring through Logfire integration:
    To connect to the MCP server running in docker, run:
 
    ```bash
-   claude mcp add -s project --transport http tiger-slack http://localhost:3000/mcp
+   claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp
    ```
 
    To use the MCP server without docker, run this after building the mcp:
