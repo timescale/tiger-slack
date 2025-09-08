@@ -37,17 +37,6 @@ graph TB
     C -->|MCP Protocol| M
     M -->|SQL Queries| D
     M -->|Structured Data| C
-    
-    %% Styling
-    classDef slack fill:#4A154B,color:#fff
-    classDef ai fill:#FF6B35,color:#fff  
-    classDef data fill:#336791,color:#fff
-    classDef service fill:#2D9CDB,color:#fff
-    
-    class S slack
-    class C ai
-    class D data
-    class I,M service
 ```
 
 ## Key Components
