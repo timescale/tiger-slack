@@ -11,13 +11,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 # Set working directory
 WORKDIR /app
 
-# Copy uv configuration files
-COPY pyproject.toml uv.lock ./
-
-# Install dependencies
-RUN uv sync --frozen
-
-# Copy application code
+# Copy uv configuration files and application code (needed for hatchling)
+COPY pyproject.toml uv.lock README.md ./
 COPY tiger_slack/ ./tiger_slack/
+
+# Install dependencies (now that tiger_slack/__init__.py is available for version detection)
+RUN uv sync --frozen
 
 CMD ["uv", "run", "python", "-m", "tiger_slack.main"]

@@ -1,0 +1,76 @@
+# Tiger Slack Ingest - Development Commands
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Install dependencies
+install:
+    uv sync
+
+# Run the main ingest application
+run:
+    uv run python -m tiger_slack.main
+
+# Run database migrations only
+migrate:
+    uv run python -m tiger_slack.migrations.runner
+
+# Run scheduled jobs manually (user and channel sync)
+jobs:
+    uv run python -m tiger_slack.jobs
+
+# Import historical Slack export data
+import EXPORT_PATH:
+    uv run python -m tiger_slack.import {{EXPORT_PATH}}
+
+# Build the Docker image
+build-image TAG="tiger-slack-ingest:latest":
+    docker build -t {{TAG}} .
+
+# Build and run with Docker
+docker-run TAG="tiger-slack-ingest:latest":
+    docker build -t {{TAG}} .
+    docker run --rm -it {{TAG}}
+
+# Run with Docker using environment file
+docker-run-env TAG="tiger-slack-ingest:latest" ENV_FILE="../.env":
+    docker build -t {{TAG}} .
+    docker run --rm -it --env-file {{ENV_FILE}} {{TAG}}
+
+# Clean up build artifacts
+clean:
+    rm -rf .venv
+    rm -rf dist
+    rm -rf __pycache__
+    find . -name "*.pyc" -delete
+    find . -name "*.pyo" -delete
+    find . -name "__pycache__" -type d -exec rm -rf {} +
+
+# Check code formatting with ruff
+check:
+    uv run ruff check .
+
+# Format code with ruff
+format:
+    uv run ruff format .
+
+# Run type checking with mypy (if available)
+typecheck:
+    uv run mypy tiger_slack/ || echo "mypy not configured"
+
+# Show package version
+version:
+    uv run python -c "from tiger_slack import __version__; print(__version__)"
+
+# Development server with auto-reload (if supported)
+dev:
+    uv run python -m tiger_slack.main
+
+# Build package wheel
+build-wheel:
+    uv build
+
+# Show dependency tree
+deps:
+    uv tree
