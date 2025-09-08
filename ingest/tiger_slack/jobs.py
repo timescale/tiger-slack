@@ -1,3 +1,5 @@
+from typing import Any
+
 import logfire
 from psycopg import AsyncCursor
 from psycopg.types.json import Jsonb
@@ -8,6 +10,20 @@ from slack_sdk.web.async_slack_response import AsyncSlackResponse
 # Advisory lock keys for job coordination
 USERS_LOCK_KEY = 5245366294413312
 CHANNELS_LOCK_KEY = 6801911210587046
+
+
+def get_response_data(response: AsyncSlackResponse) -> dict[str, Any]:
+    if isinstance(response.data, dict):
+        return response.data
+    else:
+        logfire.error(
+            "unexpected response data type from slack api",
+            data_type=type(response.data).__name__,
+            response_status=response.status_code,
+        )
+        raise TypeError(
+            f"expected dict response from slack api, got {type(response.data)}"
+        )
 
 
 @logfire.instrument("try_job_lock", extract_args=["shared_lock_key"])
@@ -34,20 +50,21 @@ async def load_users(client: AsyncWebClient, pool: AsyncConnectionPool) -> None:
             while True:
                 with logfire.span("users_list"):
                     response: AsyncSlackResponse = await client.users_list(**args)
-                    ok = response.data.get("ok")
+                    data = get_response_data(response)
+                    ok = data.get("ok")
                     if not ok:
                         raise Exception("response from users_list was not 'ok'")
                 with logfire.span(
-                    "loading_users", num_users=len(response.data.get("members"))
+                    "loading_users", num_users=len(data.get("members", []))
                 ):
-                    for user in response.data.get("members"):
+                    for user in data.get("members", []):
                         async with con.transaction() as _:
                             event = {"user": user}
                             await cur.execute(
                                 "select * from slack.upsert_user(%s)", (Jsonb(event),)
                             )
-                if "response_metadata" in response.data:
-                    next_cursor = response.data["response_metadata"].get("next_cursor")
+                if "response_metadata" in data:
+                    next_cursor = data["response_metadata"].get("next_cursor")
                     if next_cursor:
                         args["cursor"] = next_cursor
                         continue
@@ -69,21 +86,22 @@ async def load_channels(client: AsyncWebClient, pool: AsyncConnectionPool) -> No
                     response: AsyncSlackResponse = await client.conversations_list(
                         **args
                     )
-                    ok = response.data.get("ok")
+                    data = get_response_data(response)
+                    ok = data.get("ok")
                     if not ok:
                         raise Exception("response from conversations_list was not 'ok'")
                 with logfire.span(
-                    "loading_channels", num_channels=len(response.data.get("channels"))
+                    "loading_channels", num_channels=len(data.get("channels", []))
                 ):
-                    for channel in response.data.get("channels"):
+                    for channel in data.get("channels", []):
                         async with con.transaction() as _:
                             event = {"channel": channel}
                             await cur.execute(
                                 "select * from slack.upsert_channel(%s)",
                                 (Jsonb(event),),
                             )
-                if "response_metadata" in response.data:
-                    next_cursor = response.data["response_metadata"].get("next_cursor")
+                if "response_metadata" in data:
+                    next_cursor = data["response_metadata"].get("next_cursor")
                     logfire.info(f"next_cursor: {next_cursor}")
                     if next_cursor:
                         args["cursor"] = next_cursor
@@ -104,7 +122,7 @@ if __name__ == "__main__":
     load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
     logfire.configure(
-        service_name=os.getenv("SERVICE_NAME", "tiger-slack"),
+        service_name=os.getenv("SERVICE_NAME", "tiger-slack-ingest"),
         service_version=__version__,
     )
     logfire.instrument_psycopg()

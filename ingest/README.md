@@ -463,6 +463,7 @@ just --list
    ```bash
    just lint          # Run ruff linter checks
    just format        # Check formatting (diff preview)
+   just typecheck     # Run pyright type checking
    just lint-fix      # Fix auto-fixable linting issues  
    just format-fix    # Apply code formatting
    ```

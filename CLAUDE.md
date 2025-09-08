@@ -45,7 +45,7 @@ just run                     # Run ingest service locally
 just migrate                 # Run database migrations
 just jobs                    # Run scheduled sync jobs manually
 just import /path/to/export  # Import Slack workspace export
-just lint && just format    # Code quality checks
+just lint && just format && just typecheck  # Code quality checks
 just build-image             # Build Docker image
 ```
 
@@ -117,6 +117,7 @@ LOGFIRE_ENVIRONMENT="development"
 
 ### Ingest Service
 - Ruff for linting and formatting (`just lint`, `just format`)
+- Pyright for type checking (`just typecheck`)
 - Database migration testing (`just migrate`)
 - Docker build verification (`just build-image`)
 

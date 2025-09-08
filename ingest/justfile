@@ -63,6 +63,10 @@ format:
 format-fix:
     uv run ruff format .
 
+# Run pyright type checking
+typecheck:
+    uv run pyright
+
 # Show package version
 version:
     uv run python -c "from tiger_slack import __version__; print(__version__)"

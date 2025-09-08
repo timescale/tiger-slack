@@ -176,7 +176,7 @@ async def main():
 
     logfire.info("Starting database migration...")
 
-    async with AsyncConnection.connect(database_url) as con:
+    async with await AsyncConnection.connect(database_url) as con:
         await migrate_db(con)
 
     logfire.info("Database migration completed successfully")

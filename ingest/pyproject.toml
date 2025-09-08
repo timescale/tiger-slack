@@ -26,6 +26,7 @@ path = "tiger_slack/__init__.py"
 [tool.uv]
 dev-dependencies = [
     "ruff>=0.12.11",
+    "pyright>=1.1.390",
 ]
 
 [tool.ruff]
@@ -51,3 +52,20 @@ select = [
 ]
 ignore = ["E501"] # we use `ruff format` on everything, so this is just annoying
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.pyright]
+include = ["tiger_slack"]
+exclude = [".venv", "**/__pycache__"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.13"
+typeCheckingMode = "standard"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportMissingParameterType = false
+reportUnnecessaryTypeIgnoreComment = false
+reportArgumentType = "none"
+reportGeneralTypeIssues = "warning"
