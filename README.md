@@ -1,19 +1,19 @@
 # Tiger Slack
 
-**AI-Powered Slack Analytics Platform**
+**Conversational Memory for AI Slack Bots**
 
-Tiger Slack transforms your Slack workspace into an AI-accessible knowledge base. It captures real-time conversations, stores them in a time-series database, and provides intelligent APIs that allow AI assistants like Claude to analyze discussions, track user activity, and surface insights from your team's communication patterns.
+Tiger Slack gives AI assistants the ability to understand and engage with your team's conversations naturally. By providing real-time access to message history and context through a specialized MCP server, it enables AI bots to respond to questions with the same contextual awareness that humans have - understanding references to past discussions, ongoing projects, and team dynamics.
 
 ## Overview
 
-This platform bridges the gap between human conversations in Slack and AI-powered analysis. By ingesting messages in real-time and providing structured access through the Model Context Protocol (MCP), Tiger Slack enables sophisticated conversation analysis, user behavior insights, and intelligent workspace queries.
+This platform enables AI assistants to participate meaningfully in your team's conversations by giving them access to conversational context and history. When someone asks "What did we decide about the deployment?" or "Who was working on the API issue?", an AI bot powered by Tiger Slack can understand these references and provide informed responses, just like a team member would.
 
-Perfect for teams wanting to:
-- 🔍 **Search conversations intelligently** with natural language queries
-- 📊 **Analyze communication patterns** and team dynamics
-- 🤖 **Surface insights** from historical discussions
-- 📈 **Track project evolution** through message threads
-- 🎯 **Find expertise** by analyzing who discusses what topics
+Built for teams who want their AI assistants to:
+- 🤖 **Understand conversational context** and references to past discussions
+- 🔍 **Answer questions about project history** and decisions
+- 👥 **Know who's involved** in different topics and threads
+- 📝 **Follow ongoing conversations** and provide relevant input
+- 🧠 **Build conversational memory** across all team channels
 
 ## Architecture
 
@@ -22,12 +22,11 @@ graph TB
     %% External Systems
     S[Slack Workspace]
     C[Claude/LLM Client]
-    L[Logfire Dashboard]
     
     %% Core Components  
-    I[Ingest Service<br/>Python + asyncio]
+    I[Ingest Service<br/>Python]
     D[TimescaleDB<br/>Time-series Database]
-    M[MCP Server<br/>TypeScript + HTTP]
+    M[MCP/HTTP Server<br/>TypeScript]
     
     %% Data Flow - Ingestion
     S -->|WebSocket Events| I
@@ -39,24 +38,16 @@ graph TB
     M -->|SQL Queries| D
     M -->|Structured Data| C
     
-    %% Observability
-    I -->|Traces & Logs| L
-    I -->|Performance Metrics| L
-    M -->|Traces & Logs| L
-    M -->|Performance Metrics| L
-    
     %% Styling
     classDef slack fill:#4A154B,color:#fff
     classDef ai fill:#FF6B35,color:#fff  
     classDef data fill:#336791,color:#fff
     classDef service fill:#2D9CDB,color:#fff
-    classDef observability fill:#FF9500,color:#fff
     
     class S slack
     class C ai
     class D data
     class I,M service
-    class L observability
 ```
 
 ## Key Components
