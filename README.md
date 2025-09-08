@@ -31,7 +31,7 @@ graph TB
     %% Data Flow - Ingestion
     S -->|WebSocket Events| I
     S -->|Historical Export| I
-    I -->|Store Messages| D
+    I -->|Store Events| D
     
     %% Data Flow - Analysis
     C -->|MCP Protocol| M
