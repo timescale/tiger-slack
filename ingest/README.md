@@ -458,10 +458,7 @@ just --list
 
 ### Code Quality Standards
 
-The project uses ruff for both linting and formatting with the following configuration:
-- **Line length**: 88 characters
-- **Linting rules**: pycodestyle, Pyflakes, pyupgrade, flake8-bugbear, isort, and more
-- **Auto-formatting**: Enabled with docstring code formatting
-- **Type checking**: Available via mypy (if configured)
+The project uses ruff for both linting and formatting.
+Refer to [pyproject.toml](/ingest/pyproject.toml) for specifics.
 
 All code should pass `just lint` and `just format` checks before committing.
