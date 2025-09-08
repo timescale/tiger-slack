@@ -48,6 +48,46 @@ The app is structured around several key modules:
 - **`import.py`**: Historical data import from Slack export files
 - **Database Layer**: TimescaleDB with dedicated `slack` schema for optimized time-series storage
 
+## Slack App Configuration
+
+Before running the ingest service, you'll need to create a Slack app with the proper permissions and event subscriptions. The repository includes a [`slack-app-manifest.json`](/slack-app-manifest.json) file that defines the required configuration.
+
+### Required Slack App Settings
+
+The manifest configures these essential permissions:
+
+#### **Bot Scopes**
+- `channels:history` - Read message history from public channels
+- `channels:read` - View basic information about public channels
+- `users.profile:read` - Access user profile information
+- `users:read` - View people in a workspace
+- `users:read.email` - View email addresses of people in a workspace
+- `reactions:read` - View emoji reactions and their associated metadata
+
+#### **Event Subscriptions**
+The app subscribes to these Slack events for real-time ingestion:
+- `channel_created`, `channel_rename` - Track channel lifecycle changes
+- `message.channels` - Capture all channel messages
+- `reaction_added`, `reaction_removed` - Track emoji reactions
+- `team_join`, `user_change`, `user_profile_changed` - Monitor user updates
+
+#### **Socket Mode**
+- Enabled for real-time event streaming via WebSocket connection
+- Eliminates need for public webhooks or request URLs
+- Allows the ingest service to run behind firewalls
+
+### Setting Up Your Slack App
+
+1. **Create the app** at [api.slack.com/apps](https://api.slack.com/apps) using the provided manifest
+2. **Install to workspace** and note the Bot User OAuth Token (`xoxb-...`)
+3. **Generate App-Level Token** with `connections:write` scope (`xapp-...`)
+4. **Configure environment variables** in your `.env` file:
+   ```bash
+   SLACK_BOT_TOKEN="xoxb-your-bot-token"
+   SLACK_APP_TOKEN="xapp-your-app-token"
+   SLACK_DOMAIN="your-workspace-name"
+   ```
+
 ### Running the Ingest Service
 
 ```bash
