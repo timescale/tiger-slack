@@ -14,6 +14,7 @@ from slack_bolt.app.async_app import AsyncApp
 from tiger_slack import __version__, jobs
 from tiger_slack.events import register_handlers
 from tiger_slack.migrations.runner import migrate_db
+from tiger_slack.utils import get_connection_info
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
@@ -64,8 +65,7 @@ async def reset_database_connection(con: AsyncConnection) -> None:
 
 
 async def main() -> None:
-    database_url = os.getenv("DATABASE_URL")
-    assert database_url is not None, "DATABASE_URL environment variable is missing!"
+    conn_info = get_connection_info()
     slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
     assert slack_bot_token is not None, (
         "SLACK_BOT_TOKEN environment variable is missing!"
@@ -82,7 +82,7 @@ async def main() -> None:
     loop.set_exception_handler(exception_handler)
 
     async with AsyncConnectionPool(
-        database_url,
+        conn_info,
         check=AsyncConnectionPool.check_connection,
         configure=configure_database_connection,
         reset=reset_database_connection,

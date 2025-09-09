@@ -13,6 +13,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from tiger_slack import __version__
 from tiger_slack.migrations.runner import migrate_db
+from tiger_slack.utils import get_connection_info
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
@@ -22,8 +23,7 @@ logfire.configure(
 )
 logfire.instrument_psycopg()
 
-database_url = os.getenv("DATABASE_URL")
-assert database_url is not None, "DATABASE_URL environment variable is missing!"
+conn_info = get_connection_info()
 
 
 @logfire.instrument("get_channel_name_to_id_mapping", extract_args=False)
@@ -215,7 +215,7 @@ async def load_messages(pool: AsyncConnectionPool, directory: Path) -> None:
 
 @logfire.instrument("run_import")
 async def run_import(directory: Path):
-    async with AsyncConnectionPool(database_url, min_size=1, max_size=1) as pool:
+    async with AsyncConnectionPool(conn_info, min_size=1, max_size=1) as pool:
         await pool.wait()
 
         async with pool.connection() as con:

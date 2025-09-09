@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Tiger-Slack Ingest",
+            "type": "python",
+            "request": "launch",
+            "module": "tiger_slack.main",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "PGHOST": "localhost"
+            },
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

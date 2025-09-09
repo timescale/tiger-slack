@@ -7,6 +7,8 @@ from psycopg_pool import AsyncConnectionPool
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.web.async_slack_response import AsyncSlackResponse
 
+from tiger_slack.utils import get_connection_info
+
 # Advisory lock keys for job coordination
 USERS_LOCK_KEY = 5245366294413312
 CHANNELS_LOCK_KEY = 6801911210587046
@@ -127,8 +129,7 @@ if __name__ == "__main__":
     )
     logfire.instrument_psycopg()
 
-    database_url = os.getenv("DATABASE_URL")
-    assert database_url is not None, "DATABASE_URL environment variable is missing!"
+    conn_info = get_connection_info()
     slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
     assert slack_bot_token is not None, (
         "SLACK_BOT_TOKEN environment variable is missing!"
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     client = AsyncWebClient(token=slack_bot_token)
 
     async def main():
-        async with AsyncConnectionPool(database_url, min_size=1, max_size=1) as pool:
+        async with AsyncConnectionPool(conn_info, min_size=1, max_size=1) as pool:
             await pool.wait()
             await load_users(client, pool)
             await load_channels(client, pool)

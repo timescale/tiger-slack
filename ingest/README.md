@@ -228,7 +228,7 @@ The import handles complex Slack message structures:
 # Download Slack workspace export from your admin panel
 # Extract the ZIP file to a local directory
 
-# Run the import (requires DATABASE_URL environment variable)
+# Run the import (requires PG* environment variable)
 cd ingest
 uv run python -m tiger_slack.import /path/to/slack-export-directory
 
