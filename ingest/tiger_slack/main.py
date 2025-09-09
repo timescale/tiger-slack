@@ -14,7 +14,7 @@ from slack_bolt.app.async_app import AsyncApp
 from tiger_slack import __version__, jobs
 from tiger_slack.events import register_handlers
 from tiger_slack.migrations.runner import migrate_db
-from tiger_slack.utils import get_connection_info
+from tiger_slack.utils import get_connection_info, is_table_empty
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
@@ -103,6 +103,12 @@ async def main() -> None:
 
         @aiocron.crontab("0 1 * * *")
         async def daily_channel_job() -> None:
+            await jobs.load_channels(app.client, pool)
+            
+        if (await is_table_empty(pool, "user")):
+            await jobs.load_users(app.client, pool)
+            
+        if (await is_table_empty(pool, "channel")):
             await jobs.load_channels(app.client, pool)
 
         handler = AsyncSocketModeHandler(app, slack_app_token)
