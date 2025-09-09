@@ -108,6 +108,22 @@ Create/edit the file `~/Library/Application Support/Claude/claude_desktop_config
 }
 ```
 
+### Linting
+
+This project uses ESLint for code linting with TypeScript support.
+
+To run the linter:
+
+```bash
+npm run lint
+```
+
+To automatically fix linting issues where possible:
+
+```bash
+npm run lint:fix
+```
+
 ## Observability with Logfire
 
 The Tiger Slack MCP Server includes comprehensive observability through [Logfire](https://logfire.pydantic.dev/) and OpenTelemetry, providing real-time monitoring of API calls, database queries, and system performance.
