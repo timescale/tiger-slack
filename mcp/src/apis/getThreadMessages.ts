@@ -46,7 +46,10 @@ export const getThreadMessagesFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ channel, includePermalinks, ts }) => {
+  fn: async ({ channel, includePermalinks, ts }): Promise<{
+    messages: z.infer<typeof zMessage>[];
+    users: Record<string, z.infer<typeof zUser>>;
+  }> => {
     const result = await pgPool.query<Message>(
       /* sql */ `
 SELECT ts::text, channel_id, text, m.user_id, thread_ts::text FROM slack.message m

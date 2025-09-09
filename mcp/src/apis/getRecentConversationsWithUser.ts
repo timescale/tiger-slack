@@ -71,7 +71,10 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
     lookbackInterval,
     limit,
     window,
-  }) => {
+  }): Promise<{
+    channels: Record<string, z.infer<typeof zChannel>>;
+    users: Record<string, z.infer<typeof zUser>>;
+  }> => {
     const users = await findUser(pgPool, username);
     if (users.length === 0) {
       throw new Error(`No user found matching "${username}"`);

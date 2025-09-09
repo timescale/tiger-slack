@@ -56,7 +56,10 @@ export const getMessageContextFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ ts, channel, window, limit }) => {
+  fn: async ({ ts, channel, window, limit }): Promise<{
+    channels: Record<string, z.infer<typeof zChannel>>;
+    users: Record<string, z.infer<typeof zUser>>;
+  }> => {
     const client = await pgPool.connect();
     try {
       const result = await client.query<Message>(

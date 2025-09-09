@@ -12,6 +12,7 @@ const inputSchema = {
     ),
 } as const;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { messages, ...common } = zChannel.shape;
 const zChannelWithoutMessages = z.object(common);
 const outputSchema = {
@@ -33,7 +34,7 @@ export const getChannelsFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ keyword }) => {
+  fn: async ({ keyword }): Promise<{ results: z.infer<typeof zChannelWithoutMessages>[] }> => {
     const res = await pgPool.query(
       /* sql */ `
 SELECT id, channel_name, topic, purpose
