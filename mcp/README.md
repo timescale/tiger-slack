@@ -100,7 +100,7 @@ Create/edit the file `~/Library/Application Support/Claude/claude_desktop_config
         "PGHOST": "x.y.tsdb.cloud.timescale.com",
         "PGDATABASE": "tsdb",
         "PGPORT": "32467",
-        "PGUSER": "readonly_mcp_user",
+        "PGUSER": "tsdbadmin",
         "PGPASSWORD": "abc123"
       }
     }

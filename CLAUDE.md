@@ -23,7 +23,7 @@ docker compose down -v --remove-orphans && docker system prune -f --volumes && d
 
 ### Database Access
 ```bash
-psql -d "postgres://postgres@localhost:5432/tiger_slack"  # Connect to TimescaleDB via psql
+psql -d "postgres://tsdbadmin:password@localhost:5432/tsdb"  # Connect to TimescaleDB via psql
 ```
 
 ### MCP Integration Setup
@@ -70,9 +70,9 @@ SLACK_DOMAIN="your-workspace"
 
 # PostgreSQL connection details
 PGHOST="db"                    # or "localhost" for local development
-PGDATABASE="tiger_slack"
+PGDATABASE="tsdb"
 PGPORT="5432"
-PGUSER="postgres"
+PGUSER="tsdbadmin"
 PGPASSWORD="password"
 
 # Logfire observability

@@ -102,8 +102,8 @@ Full-stack monitoring through Logfire integration:
    ```bash
    export PGHOST=localhost
    export PGPORT=5432
-   export PGUSER=postgres
-   export PGDATABASE=tiger_slack
+   export PGUSER=tsdbadmin
+   export PGDATABASE=tsdb
    claude mcp add -s project tiger-slack node /absolute/path/to/tiger-slack/mcp/dist/index.js stdio
    ```
 
@@ -147,7 +147,7 @@ docker compose up -d --build
 
 ### Database Access
 ```bash
-psql -d "postgres://postgres@localhost:5432/tiger_slack"
+psql -d "postgres://tsdbadmin:password@localhost:5432/tsdb"
 ```
 
 ## License

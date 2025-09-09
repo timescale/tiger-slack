@@ -2,9 +2,9 @@ services:
   db:
     image: timescale/timescaledb-ha:pg17
     environment:
-      POSTGRES_DB: tiger_slack
-      POSTGRES_USER: postgres
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: tsdb
+      POSTGRES_USER: tsdbadmin
+      POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
     volumes:
