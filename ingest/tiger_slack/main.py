@@ -4,7 +4,6 @@ import signal
 from typing import Any
 
 import aiocron
-from tiger_slack.utils import get_connection_info
 import logfire
 from dotenv import find_dotenv, load_dotenv
 from psycopg import AsyncConnection
@@ -15,6 +14,7 @@ from slack_bolt.app.async_app import AsyncApp
 from tiger_slack import __version__, jobs
 from tiger_slack.events import register_handlers
 from tiger_slack.migrations.runner import migrate_db
+from tiger_slack.utils import get_connection_info
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 

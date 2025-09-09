@@ -2,12 +2,12 @@ import asyncio
 import re
 from pathlib import Path
 
-from tiger_slack.utils import get_connection_info
 import logfire
 from psycopg import AsyncConnection, AsyncCursor
 from semver import Version
 
 from tiger_slack import __version__
+from tiger_slack.utils import get_connection_info
 
 SHARED_LOCK_KEY = 9373348629322944
 MAX_LOCK_ATTEMPTS = 10

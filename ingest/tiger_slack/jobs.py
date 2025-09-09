@@ -6,6 +6,7 @@ from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.web.async_slack_response import AsyncSlackResponse
+
 from tiger_slack.utils import get_connection_info
 
 # Advisory lock keys for job coordination
