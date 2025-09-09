@@ -68,8 +68,12 @@ SLACK_BOT_TOKEN="xoxb-..."
 SLACK_APP_TOKEN="xapp-..."
 SLACK_DOMAIN="your-workspace"
 
-# Database connection
-DATABASE_URL="postgres://postgres@localhost:5432/tiger_slack"
+# PostgreSQL connection details
+PGHOST="db"                    # or "localhost" for local development
+PGDATABASE="tiger_slack"
+PGPORT="5432"
+PGUSER="postgres"
+PGPASSWORD="password"
 
 # Logfire observability
 LOGFIRE_TOKEN="pylf_..."           # Write token for traces/logs

@@ -1,8 +1,8 @@
 import asyncio
-import os
 import re
 from pathlib import Path
 
+from tiger_slack.utils import get_connection_info
 import logfire
 from psycopg import AsyncConnection, AsyncCursor
 from semver import Version
@@ -170,13 +170,11 @@ async def main():
     # Load environment variables
     load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise ValueError("DATABASE_URL environment variable is required")
+    conn_info = get_connection_info()
 
     logfire.info("Starting database migration...")
 
-    async with await AsyncConnection.connect(database_url) as con:
+    async with await AsyncConnection.connect(conn_info) as con:
         await migrate_db(con)
 
     logfire.info("Database migration completed successfully")
