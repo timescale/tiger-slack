@@ -2,7 +2,7 @@ export const selectExpandedMessages = (
   targetMessagesSql: string,
   window: string,
   limit: string,
-) => /* sql */ `
+): string => /* sql */ `
 -- Start by selecting the target messages
 WITH
 target_messages AS (

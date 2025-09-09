@@ -32,7 +32,7 @@ export const getUsersFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ keyword }) => {
+  fn: async ({ keyword }): Promise<{ results: z.infer<typeof zUser>[] }> => {
     const res = await pgPool.query<User>(
       /* sql */ `
 SELECT id, user_name, real_name, display_name, email 

@@ -49,10 +49,9 @@ jobs:
         token: ${{ secrets.API_TOKEN_GITHUB }}
 
     - name: Setup Node.js
-      
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
-        node-version: '22'
+        node-version: 22
         cache: 'npm'
         cache-dependency-path: ./mcp/package-lock.json
     
@@ -61,3 +60,6 @@ jobs:
     
     - name: Build and type check
       run: npm run build
+
+    - name: Run ESLint
+      run: npm run lint

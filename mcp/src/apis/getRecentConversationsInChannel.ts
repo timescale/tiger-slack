@@ -60,7 +60,10 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ channelName, includePermalinks, lookbackInterval, limit }) => {
+  fn: async ({ channelName, includePermalinks, lookbackInterval, limit }): Promise<{
+    channel: z.infer<typeof zChannel>;
+    users: Record<string, z.infer<typeof zUser>>;
+  }> => {
     const channels = await findChannel(pgPool, channelName);
     if (channels.length === 0) {
       throw new Error(`No channel found matching "${channelName}"`);
