@@ -12,5 +12,3 @@ def get_connection_info() -> str:
         raise Exception("PGHOST AND PGDATABASE environment variables need to be set!")
     
     return f"host={host} port={port} dbname={database} user={user} password={password}"
-    
-    
