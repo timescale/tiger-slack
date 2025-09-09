@@ -79,7 +79,7 @@ Full-stack monitoring through Logfire integration:
 
 1. **Clone and Setup**
    ```bash
-   git clone --recurse-submodules https://github.com/timescale/tiger-slack.git
+   git clone --recurse-submodules git@github.com:timescale/tiger-slack.git
    cd tiger-slack
    cp .env.sample .env  # Configure your Slack tokens
    ```
