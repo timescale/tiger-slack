@@ -105,10 +105,10 @@ async def main() -> None:
         async def daily_channel_job() -> None:
             await jobs.load_channels(app.client, pool)
 
-        if (await is_table_empty(pool, "user")):
+        if await is_table_empty(pool, "user"):
             await daily_user_job()
 
-        if (await is_table_empty(pool, "channel")):
+        if await is_table_empty(pool, "channel"):
             await daily_channel_job()
 
         handler = AsyncSocketModeHandler(app, slack_app_token)
