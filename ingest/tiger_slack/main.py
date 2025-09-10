@@ -104,12 +104,12 @@ async def main() -> None:
         @aiocron.crontab("0 1 * * *")
         async def daily_channel_job() -> None:
             await jobs.load_channels(app.client, pool)
-            
+
         if (await is_table_empty(pool, "user")):
-            await jobs.load_users(app.client, pool)
-            
+            await daily_user_job()
+
         if (await is_table_empty(pool, "channel")):
-            await jobs.load_channels(app.client, pool)
+            await daily_channel_job()
 
         handler = AsyncSocketModeHandler(app, slack_app_token)
 
