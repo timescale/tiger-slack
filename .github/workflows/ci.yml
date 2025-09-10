@@ -1,0 +1,117 @@
+name: ci
+on: [pull_request]
+
+jobs:
+  ci-ingest:
+    name: ci-ingest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ingest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        token: ${{ secrets.API_TOKEN_GITHUB }}
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "0.8.16"
+    
+    - name: Set up Python
+      run: uv python install 3.13
+    
+    - name: Install dependencies
+      run: uv sync
+    
+    - name: Run linter
+      run: uv run ruff check .
+    
+    - name: Check formatting
+      run: uv run ruff format --diff --check .
+    
+    - name: Run type checking
+      run: uv run pyright
+
+  ci-mcp:
+    name: ci-mcp
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./mcp
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        token: ${{ secrets.API_TOKEN_GITHUB }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: 22
+        cache: 'npm'
+        cache-dependency-path: ./mcp/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build and type check
+      run: npm run build
+
+    - name: Run ESLint
+      run: npm run lint
+
+  docker-ingest:
+    name: docker-ingest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ingest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ingest Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ingest
+          file: ./ingest/Dockerfile
+          push: false
+          tags: tiger-slack-ingest:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  docker-mcp:
+    name: docker-mcp
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./mcp
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build MCP Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./mcp
+          file: ./mcp/Dockerfile
+          push: false
+          tags: tiger-slack-mcp:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
