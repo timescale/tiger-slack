@@ -1,8 +1,7 @@
 services:
   db:
     image: timescale/timescaledb-ha:pg17
-    env_file:
-      - .env
+
     environment:
       POSTGRES_DB: ${PGDATABASE}
       POSTGRES_USER: ${PGUSER}
