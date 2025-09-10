@@ -7,7 +7,6 @@ from psycopg import AsyncConnection, AsyncCursor
 from semver import Version
 
 from tiger_slack import __version__
-from tiger_slack.utils import get_connection_info
 
 SHARED_LOCK_KEY = 9373348629322944
 MAX_LOCK_ATTEMPTS = 10
@@ -170,11 +169,9 @@ async def main():
     # Load environment variables
     load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
-    conn_info = get_connection_info()
-
     logfire.info("Starting database migration...")
 
-    async with await AsyncConnection.connect(conn_info) as con:
+    async with await AsyncConnection.connect() as con:
         await migrate_db(con)
 
     logfire.info("Database migration completed successfully")

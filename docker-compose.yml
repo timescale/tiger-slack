@@ -1,16 +1,19 @@
 services:
   db:
     image: timescale/timescaledb-ha:pg17
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: tsdb
-      POSTGRES_USER: tsdbadmin
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${PGDATABASE}
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_PORT: ${PGPORT}
     ports:
-      - "5432:5432"
+      - "5432:${PGPORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tsdbadmin -d tsdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER} -d ${PGDATABASE}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,11 +26,6 @@ services:
     env_file:
       - .env
     environment:
-      PGHOST: db
-      PGDATABASE: tsdb
-      PGPORT: 5432
-      PGUSER: tsdbadmin
-      PGPASSWORD: password
       LOGFIRE_ENVIRONMENT: ${LOGFIRE_ENVIRONMENT:-development}
     depends_on:
       - db
@@ -39,11 +37,6 @@ services:
     env_file:
       - .env
     environment:
-      PGHOST: db
-      PGDATABASE: tsdb
-      PGPORT: 5432
-      PGUSER: tsdbadmin
-      PGPASSWORD: password
       INSTRUMENT: "true"
       OTEL_SERVICE_NAME: "tiger-slack-mcp"
       OTEL_LOG_LEVEL: "info"
@@ -57,3 +50,8 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  default:
+    name: tiger-network
+    driver: bridge
