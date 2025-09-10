@@ -9,7 +9,7 @@ from psycopg_pool import AsyncConnectionPool
 async def is_table_empty(pool: AsyncConnectionPool, table_name: str) -> bool:
     async with pool.connection() as con, con.cursor() as cur:
         await cur.execute(
-            f"SELECT EXISTS(SELECT 1 FROM slack.{sql.Identifier(table_name)} LIMIT 1)"
+            sql.SQL(f"SELECT EXISTS(SELECT 1 FROM slack.{sql.Identifier(table_name)} LIMIT 1)")
         )
         row = await cur.fetchone()
         if not row:
