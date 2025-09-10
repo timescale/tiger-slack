@@ -14,7 +14,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.API_TOKEN_GITHUB }}
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -54,7 +53,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.API_TOKEN_GITHUB }}
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
