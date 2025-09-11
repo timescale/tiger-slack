@@ -3,6 +3,11 @@ import { ServerContext, User, zUser } from '../types.js';
 import { ApiFactory } from '../shared/boilerplate/src/types.js';
 
 const inputSchema = {
+  includeTimezone: z
+    .boolean()
+    .describe(
+      'If true, includes the timezones for each user. Not needed for most cases.',
+    ),
   keyword: z
     .string()
     .min(0)
@@ -32,10 +37,22 @@ export const getUsersFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ keyword }): Promise<{ results: z.infer<typeof zUser>[] }> => {
+  fn: async ({
+    includeTimezone,
+    keyword,
+  }): Promise<{ results: z.infer<typeof zUser>[] }> => {
+    const fields = [
+      'id',
+      'user_name',
+      'real_name',
+      'display_name',
+      'email',
+      ...(includeTimezone ? ['tz'] : []),
+    ];
+
     const res = await pgPool.query<User>(
       /* sql */ `
-SELECT id, user_name, real_name, display_name, email 
+SELECT ${fields.join(', ')}
   FROM slack.user 
   WHERE NOT deleted 
     AND NOT is_bot
