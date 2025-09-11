@@ -34,10 +34,10 @@ export const zUser = z.object({
   //     'The user-specified display name, but without only with standard characters e.g. no diacritics or other special characters.',
   //   ),
   email: z.string().email().nullable(),
-  // tz: z
-  //   .string()
-  //   .nullable()
-  //   .describe("The user's timezone city/location (e.g. America/Chicago)."),
+  tz: z
+    .string()
+    .nullable()
+    .describe("The user's timezone city/location (e.g. America/Chicago)."),
   // tz_label: z
   //   .string()
   //   .nullable()
