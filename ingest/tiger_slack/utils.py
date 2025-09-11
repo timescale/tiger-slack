@@ -1,5 +1,3 @@
-import os
-
 import logfire
 from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
@@ -17,16 +15,3 @@ async def is_table_empty(pool: AsyncConnectionPool, table_name: str) -> bool:
         if not row:
             raise Exception(f"Failed to check if table {table_name} is empty")
         return not bool(row[0])
-
-
-def get_connection_info() -> str:
-    host = os.getenv("PGHOST")
-    port = os.getenv("PGPORT", 5432)
-    user = os.getenv("PGUSER", "postgres")
-    password = os.getenv("PASSWORD", "password")
-    database = os.getenv("PGDATABASE")
-
-    if host is None and database is None:
-        raise Exception("PGHOST AND PGDATABASE environment variables need to be set!")
-
-    return f"host={host} port={port} dbname={database} user={user} password={password}"
