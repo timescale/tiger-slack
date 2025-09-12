@@ -37,6 +37,7 @@ export const zUser = z.object({
   tz: z
     .string()
     .optional()
+    .nullable()
     .describe("The user's timezone city/location (e.g. America/Chicago)."),
   // tz_label: z
   //   .string()
