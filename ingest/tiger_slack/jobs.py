@@ -1,25 +1,35 @@
+import asyncio
+import logging
+import os
 from typing import Any
 
 import logfire
+from dotenv import find_dotenv, load_dotenv
 from psycopg import AsyncCursor
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.web.async_slack_response import AsyncSlackResponse
 
+from tiger_slack.logging_config import setup_logging
+
 # Advisory lock keys for job coordination
 USERS_LOCK_KEY = 5245366294413312
 CHANNELS_LOCK_KEY = 6801911210587046
+
+logger = logging.getLogger(__name__)
 
 
 def get_response_data(response: AsyncSlackResponse) -> dict[str, Any]:
     if isinstance(response.data, dict):
         return response.data
     else:
-        logfire.error(
+        logger.error(
             "unexpected response data type from slack api",
-            data_type=type(response.data).__name__,
-            response_status=response.status_code,
+            extra={
+                "data_type": type(response.data).__name__,
+                "response_status": response.status_code,
+            },
         )
         raise TypeError(
             f"expected dict response from slack api, got {type(response.data)}"
@@ -41,6 +51,7 @@ async def try_lock(cur: AsyncCursor, shared_lock_key: int) -> bool:
 
 @logfire.instrument("load_users", extract_args=False)
 async def load_users(client: AsyncWebClient, pool: AsyncConnectionPool) -> None:
+    total_users_loaded = 0
     try:
         async with pool.connection() as con, con.cursor() as cur:
             # make sure no one else is already running the job
@@ -57,7 +68,9 @@ async def load_users(client: AsyncWebClient, pool: AsyncConnectionPool) -> None:
                 with logfire.span(
                     "loading_users", num_users=len(data.get("members", []))
                 ):
-                    for user in data.get("members", []):
+                    users_in_batch = data.get("members", [])
+                    total_users_loaded += len(users_in_batch)
+                    for user in users_in_batch:
                         async with con.transaction() as _:
                             event = {"user": user}
                             await cur.execute(
@@ -69,8 +82,9 @@ async def load_users(client: AsyncWebClient, pool: AsyncConnectionPool) -> None:
                         args["cursor"] = next_cursor
                         continue
                 break
+        logger.info(f"Successfully loaded {total_users_loaded} users")
     except Exception as _:
-        logfire.exception("failed to load users")
+        logger.exception("failed to load users")
 
 
 @logfire.instrument("load_channels", extract_args=False)
@@ -102,30 +116,18 @@ async def load_channels(client: AsyncWebClient, pool: AsyncConnectionPool) -> No
                             )
                 if "response_metadata" in data:
                     next_cursor = data["response_metadata"].get("next_cursor")
-                    logfire.info(f"next_cursor: {next_cursor}")
+                    logger.info(f"next_cursor: {next_cursor}")
                     if next_cursor:
                         args["cursor"] = next_cursor
                         continue
                 break
     except Exception as _:
-        logfire.exception("failed to upsert channels")
+        logger.exception("failed to upsert channels")
 
 
 if __name__ == "__main__":
-    import asyncio
-    import os
-
-    from dotenv import find_dotenv, load_dotenv
-
-    from tiger_slack import __version__
-
     load_dotenv(dotenv_path=find_dotenv(usecwd=True))
-
-    logfire.configure(
-        service_name=os.getenv("SERVICE_NAME", "tiger-slack-ingest"),
-        service_version=__version__,
-    )
-    logfire.instrument_psycopg()
+    setup_logging()
 
     slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
     assert slack_bot_token is not None, (

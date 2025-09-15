@@ -107,7 +107,16 @@ Full-stack monitoring through Logfire integration:
    claude mcp add -s project tiger-slack node /absolute/path/to/tiger-slack/mcp/dist/index.js stdio
    ```
 
+   If you do not use Claude Code, you can use the [@modelcontextprovider/inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector) by running
+
+   ```bash
+   npm run inspector
+   ```
+
+   from the ./mcp subdirectory.
+
 4. **Connect to Logfire (Optional)**
+   Note: if you do not wish to use Logfire, leave the LOGFIRE_TOKEN variable empty
    To enable AI-powered tracing analysis and debugging:
 
    ```bash
