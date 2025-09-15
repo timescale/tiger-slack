@@ -179,8 +179,8 @@ Ask user for bot name (default: "tigerdata-slack-ingest"):
 5. Paste the generated manifest
 6. Go to Basic Information → App-Level Tokens
 7. "Generate Token and Scopes" with `connections:write` scope → save as `SLACK_APP_TOKEN`
-8. Go to Install App → copy "Bot User OAuth Token" → save as `SLACK_BOT_TOKEN`
-9. Click "Install to [Workspace]"
+8. Go to Install App → Click "Install to [Workspace]" (must install first!)
+9. After installation, copy "Bot User OAuth Token" → save as `SLACK_BOT_TOKEN`
 
 ### 4. Service Startup
 Run services and verify health:
