@@ -77,6 +77,21 @@ Full-stack monitoring through Logfire integration:
 
 ## Quick Start
 
+### Interactive Setup (Recommended)
+The easiest way to get started is using the interactive setup guide in Claude Code:
+
+```bash
+git clone --recurse-submodules git@github.com:timescale/tiger-slack.git
+cd tiger-slack
+claude
+# In Claude Code, ask: "help me setup" or "setup"
+```
+
+This will automatically guide you through environment configuration, Slack app creation, service startup, and Claude Code integration.
+
+### Manual Setup
+If you prefer to configure manually:
+
 1. **Clone and Setup**
    ```bash
    git clone --recurse-submodules git@github.com:timescale/tiger-slack.git
