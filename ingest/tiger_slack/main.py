@@ -18,25 +18,25 @@ from tiger_slack.utils import is_table_empty
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 
-
-logfire.configure(
-    service_name=os.getenv("SERVICE_NAME", "tiger-slack-ingest"),
-    service_version=__version__,
-)
-logfire.instrument_psycopg()
-logfire.instrument_pydantic_ai()
-logfire.instrument_mcp()
-logfire.instrument_httpx()
-logfire.instrument_system_metrics(
-    {
-        "process.cpu.time": ["user", "system"],
-        "process.cpu.utilization": None,
-        "process.cpu.core_utilization": None,
-        "process.memory.usage": None,
-        "process.memory.virtual": None,
-        "process.thread.count": None,
-    }
-)
+if (os.environ.get("LOGFIRE_TOKEN") is not None):
+    logfire.configure(
+        service_name=os.getenv("SERVICE_NAME", "tiger-slack-ingest"),
+        service_version=__version__,
+    )
+    logfire.instrument_psycopg()
+    logfire.instrument_pydantic_ai()
+    logfire.instrument_mcp()
+    logfire.instrument_httpx()
+    logfire.instrument_system_metrics(
+        {
+            "process.cpu.time": ["user", "system"],
+            "process.cpu.utilization": None,
+            "process.cpu.core_utilization": None,
+            "process.memory.usage": None,
+            "process.memory.virtual": None,
+            "process.thread.count": None,
+        }
+    )
 
 
 def shutdown_handler(signum: int, _frame: Any):
