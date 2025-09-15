@@ -9,9 +9,9 @@ from tiger_slack import __version__
 
 def setup_logging() -> None:
     """Configure Python standard library logging to use logfire as handler."""
-
     # Only configure logfire if token is available
-    if os.environ.get("LOGFIRE_TOKEN") is not None:
+    logfire_token = os.environ.get("LOGFIRE_TOKEN", "").strip()
+    if logfire_token:
         logfire.configure(
             service_name=os.getenv("SERVICE_NAME", "tiger-slack-ingest"),
             service_version=__version__,
