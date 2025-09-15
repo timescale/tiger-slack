@@ -19,6 +19,7 @@ setup_logging()
 
 logger = logging.getLogger(__name__)
 
+
 @logfire.instrument("get_channel_name_to_id_mapping", extract_args=False)
 async def get_channel_name_to_id_mapping(pool: AsyncConnectionPool) -> dict[str, str]:
     async with pool.connection() as con, con.cursor() as cur:
@@ -76,9 +77,9 @@ async def load_users_from_file(pool: AsyncConnectionPool, file_path: Path) -> No
                             "select * from slack.upsert_user(%s)", (Jsonb(event),)
                         )
     except Exception as e:
-        
         logger.exception(
-            "failed to load users from file", extra={"file_path": file_path, "error": str(e)}
+            "failed to load users from file",
+            extra={"file_path": file_path, "error": str(e)},
         )
         raise
 
@@ -99,7 +100,8 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
                         )
     except Exception as e:
         logger.exception(
-            "failed to load channels from file", extra={"file_path": file_path, "error": str(e)}
+            "failed to load channels from file",
+            extra={"file_path": file_path, "error": str(e)},
         )
         raise
 
@@ -218,14 +220,18 @@ async def run_import(directory: Path):
         if users_file.exists():
             await load_users_from_file(pool, users_file)
         else:
-            logger.warning("users.json not found in directory", extra={"directory": directory})
+            logger.warning(
+                "users.json not found in directory", extra={"directory": directory}
+            )
 
         # Load channels from channels.json file
         channels_file = directory / "channels.json"
         if channels_file.exists():
             await load_channels_from_file(pool, channels_file)
         else:
-            logger.warning("channels.json not found in directory", extra={"directory": directory})
+            logger.warning(
+                "channels.json not found in directory", extra={"directory": directory}
+            )
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory)

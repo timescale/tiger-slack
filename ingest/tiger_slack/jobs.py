@@ -29,7 +29,7 @@ def get_response_data(response: AsyncSlackResponse) -> dict[str, Any]:
             extra={
                 "data_type": type(response.data).__name__,
                 "response_status": response.status_code,
-            }
+            },
         )
         raise TypeError(
             f"expected dict response from slack api, got {type(response.data)}"

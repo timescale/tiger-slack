@@ -170,7 +170,6 @@ async def migrate_db(con: AsyncConnection) -> None:
 async def main():
     """Run database migrations CLI"""
 
-
     # Load environment variables and setup logging
     load_dotenv(dotenv_path=find_dotenv(usecwd=True))
     setup_logging()

@@ -34,29 +34,31 @@ def setup_logging() -> None:
         )
 
         # Configure standard library logging with logfire handler
-        dictConfig({
-            'version': 1,
-            'disable_existing_loggers': False,
-            'handlers': {
-                'logfire': {
-                    'class': 'logfire.LogfireLoggingHandler',
+        dictConfig(
+            {
+                "version": 1,
+                "disable_existing_loggers": False,
+                "handlers": {
+                    "logfire": {
+                        "class": "logfire.LogfireLoggingHandler",
+                    },
                 },
-            },
-            'root': {
-                'handlers': ['logfire'],
-                'level': 'INFO',
-            },
-            'loggers': {
-                # Suppress noisy third-party loggers if needed
-                'urllib3': {'level': 'WARNING'},
-                'websockets': {'level': 'WARNING'},
+                "root": {
+                    "handlers": ["logfire"],
+                    "level": "INFO",
+                },
+                "loggers": {
+                    # Suppress noisy third-party loggers if needed
+                    "urllib3": {"level": "WARNING"},
+                    "websockets": {"level": "WARNING"},
+                },
             }
-        })
+        )
     else:
         # Fallback to basic console logging when logfire token is not available
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
 
