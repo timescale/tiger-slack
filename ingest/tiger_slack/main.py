@@ -12,7 +12,7 @@ from psycopg_pool import AsyncConnectionPool
 from slack_bolt.adapter.socket_mode.websockets import AsyncSocketModeHandler
 from slack_bolt.app.async_app import AsyncApp
 
-from tiger_slack import __version__, jobs
+from tiger_slack import jobs
 from tiger_slack.events import register_handlers
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
