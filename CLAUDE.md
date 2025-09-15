@@ -197,6 +197,7 @@ docker compose logs -f
 **Troubleshooting:**
 - If services fail: `docker compose down && docker compose up -d`
 - Check logs: `docker compose logs [service-name]`
+- **If you made code changes during troubleshooting**: `docker compose up -d --build`
 - For database issues: verify TimescaleDB container is running
 - For Slack connection issues: verify tokens in `.env`
 
