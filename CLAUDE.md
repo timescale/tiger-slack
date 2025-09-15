@@ -201,11 +201,25 @@ docker compose logs -f
 - For database issues: verify TimescaleDB container is running
 - For Slack connection issues: verify tokens in `.env`
 
-### 5. Claude Code MCP Integration
-Automatically available via HTTP transport:
+### 5. Test MCP Server (Optional)
+Ask user: "Would you like to test the MCP server functionality?"
+
+If yes, run the MCP Inspector tool:
+```bash
+npx @modelcontextprotocol/inspector --cli http://localhost:3001/mcp --method tools/call --tool-name getUsers --tool-arg keyword=" " --tool-arg includeTimezone=true
+```
+
+This will test the MCP server by calling the `getUsers` function and should return a list of all users in your Slack workspace with their timezones.
+
+### 6. Claude Code MCP Integration (Optional)
+Ask user: "Would you like to integrate this with Claude Code for AI-powered Slack analysis?"
+
+If yes:
 ```bash
 claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp
 ```
+
+**Important**: You must restart Claude Code for the MCP server change to take effect.
 
 ## Development Workflow
 
