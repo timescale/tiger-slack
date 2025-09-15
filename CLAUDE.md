@@ -109,12 +109,109 @@ LOGFIRE_ENVIRONMENT="development"
 - **`slack.channel`** - Channel metadata and configuration
 - **`slack.event`** - Raw Slack events for audit trail
 
+## Interactive Setup Guide
+
+**Trigger**: When a user asks "help me setup", "setup", or similar setup requests, guide them through this interactive process.
+
+### 1. Environment File Initialization
+- Check if `.env` file exists
+- If not, copy `.env.sample` to `.env`
+- Guide user through filling required variables
+
+### 2. Logfire Setup (Optional)
+If `LOGFIRE_TOKEN` is blank in `.env`:
+- Ask user: "Would you like to setup Logfire for observability? (optional)"
+- If yes:
+  - Open browser to https://logfire-us.pydantic.dev/
+  - Instruct: "Create a project and get a write token (format: `pylf_...`)"
+  - When user provides token, update `LOGFIRE_TOKEN` in `.env`
+  - Ask: "Is 'development' environment appropriate, or different name?"
+  - Update `LOGFIRE_ENVIRONMENT` accordingly
+
+### 3. Slack App Creation (Required)
+Ask user for bot name (default: "tigerdata-slack-ingest"):
+
+**Generate Custom Manifest:**
+```json
+{
+  "display_information": {
+    "name": "[USER_PROVIDED_NAME]",
+    "description": "This bot ingests slack events into a Timescaledb database",
+    "background_color": "#000000"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "[KEBAB_CASE_NAME]",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "user": ["channels:history"],
+      "bot": [
+        "channels:history", "channels:read", "users.profile:read",
+        "users:read", "users:read.email", "reactions:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "user_events": ["message.channels"],
+      "bot_events": [
+        "channel_created", "channel_rename", "message.channels",
+        "reaction_added", "reaction_removed", "team_join",
+        "user_change", "user_profile_changed"
+      ]
+    },
+    "interactivity": {"is_enabled": true},
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
+```
+
+**Slack App Setup Steps:**
+1. Open browser to https://api.slack.com/apps/
+2. Click "Create New App"
+3. Select "From a manifest"
+4. Choose workspace (copy workspace name for `SLACK_DOMAIN`)
+5. Paste the generated manifest
+6. Go to Basic Information → App-Level Tokens
+7. "Generate Token and Scopes" with `connections:write` scope → save as `SLACK_APP_TOKEN`
+8. Go to Install App → copy "Bot User OAuth Token" → save as `SLACK_BOT_TOKEN`
+9. Click "Install to [Workspace]"
+
+### 4. Service Startup
+Run services and verify health:
+```bash
+docker compose up -d
+docker compose logs -f
+```
+
+**Health Check Verification:**
+- Database should show "database system is ready to accept connections"
+- Ingest service should connect to Slack successfully
+- MCP server should start on port 3001
+
+**Troubleshooting:**
+- If services fail: `docker compose down && docker compose up -d`
+- Check logs: `docker compose logs [service-name]`
+- For database issues: verify TimescaleDB container is running
+- For Slack connection issues: verify tokens in `.env`
+
+### 5. Claude Code MCP Integration
+Automatically available via HTTP transport:
+```bash
+claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp
+```
+
 ## Development Workflow
 
-1. **Setup**: Copy `.env.sample` to `.env` and configure credentials
+1. **Setup**: Use interactive setup guide above for first-time configuration
 2. **Start Services**: `docker compose up -d` to launch TimescaleDB, ingest, and MCP server
 3. **Verify Setup**: `docker compose logs -f` to check service health
-4. **Connect Claude**: `claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp` for AI access
+4. **Connect Claude**: MCP server auto-configured via Docker Compose
 5. **Import Data**: `cd ingest && just import /path/to/slack-export` for historical analysis
 
 ## Testing & Quality
