@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import signal
 from typing import Any
@@ -13,35 +14,19 @@ from slack_bolt.app.async_app import AsyncApp
 
 from tiger_slack import __version__, jobs
 from tiger_slack.events import register_handlers
+from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
 from tiger_slack.utils import is_table_empty
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
+setup_logging()
 
-if (os.environ.get("LOGFIRE_TOKEN") is not None):
-    logfire.configure(
-        service_name=os.getenv("SERVICE_NAME", "tiger-slack-ingest"),
-        service_version=__version__,
-    )
-    logfire.instrument_psycopg()
-    logfire.instrument_pydantic_ai()
-    logfire.instrument_mcp()
-    logfire.instrument_httpx()
-    logfire.instrument_system_metrics(
-        {
-            "process.cpu.time": ["user", "system"],
-            "process.cpu.utilization": None,
-            "process.cpu.core_utilization": None,
-            "process.memory.usage": None,
-            "process.memory.virtual": None,
-            "process.thread.count": None,
-        }
-    )
+logger = logging.getLogger(__name__)
 
 
 def shutdown_handler(signum: int, _frame: Any):
     signame = signal.Signals(signum).name
-    logfire.info(f"received {signame}, exiting")
+    logger.info(f"received {signame}, exiting")
     loop = asyncio.get_running_loop()
     loop.stop()
     exit(0)
@@ -51,9 +36,9 @@ def exception_handler(_, context):
     with logfire.span("asyncio loop exception") as _:
         exception = context.get("exception")
         if exception:
-            logfire.error("asyncio task failed", _exc_info=exception, **context)
+            logger.error("asyncio task failed", exc_info=exception, extra=context)
         else:
-            logfire.error("asyncio task failed", **context)
+            logger.error("asyncio task failed", extra=context)
 
 
 async def configure_database_connection(con: AsyncConnection) -> None:

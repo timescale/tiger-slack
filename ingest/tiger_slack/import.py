@@ -1,6 +1,6 @@
 import asyncio
 import json
-import os
+import logging
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -11,17 +11,13 @@ from dotenv import find_dotenv, load_dotenv
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from tiger_slack import __version__
+from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
+setup_logging()
 
-logfire.configure(
-    service_name=os.getenv("SERVICE_NAME", "tiger-slack"),
-    service_version=__version__,
-)
-logfire.instrument_psycopg()
-
+logger = logging.getLogger(__name__)
 
 @logfire.instrument("get_channel_name_to_id_mapping", extract_args=False)
 async def get_channel_name_to_id_mapping(pool: AsyncConnectionPool) -> dict[str, str]:
@@ -47,7 +43,7 @@ async def channel_dirs(
         channel_name = d.name
         channel_id = name_to_id.get(channel_name)
         if channel_id is None:
-            logfire.warning(f"found no channel id for: {channel_name}")
+            logger.warning(f"found no channel id for: {channel_name}")
             continue
         dirs.append((d, channel_id))
     dirs.sort()
@@ -80,8 +76,9 @@ async def load_users_from_file(pool: AsyncConnectionPool, file_path: Path) -> No
                             "select * from slack.upsert_user(%s)", (Jsonb(event),)
                         )
     except Exception as e:
-        logfire.exception(
-            "failed to load users from file", file_path=file_path, error=str(e)
+        
+        logger.exception(
+            "failed to load users from file", extra={"file_path": file_path, "error": str(e)}
         )
         raise
 
@@ -101,8 +98,8 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
                             "select * from slack.upsert_channel(%s)", (Jsonb(event),)
                         )
     except Exception as e:
-        logfire.exception(
-            "failed to load channels from file", file_path=file_path, error=str(e)
+        logger.exception(
+            "failed to load channels from file", extra={"file_path": file_path, "error": str(e)}
         )
         raise
 
@@ -195,11 +192,9 @@ async def load_messages_from_file(
                         MESSAGE_SQL, dict(channel_id=channel_id, json=content)
                     )
         except psycopg.Error as e:
-            logfire.exception(
+            logger.exception(
                 "failed to load json file",
-                channel_id=channel_id,
-                file=file,
-                error=str(e),
+                extra={"channel_id": channel_id, "file": file, "error": str(e)},
             )
             raise
 
@@ -223,14 +218,14 @@ async def run_import(directory: Path):
         if users_file.exists():
             await load_users_from_file(pool, users_file)
         else:
-            logfire.warning("users.json not found in directory", directory=directory)
+            logger.warning("users.json not found in directory", extra={"directory": directory})
 
         # Load channels from channels.json file
         channels_file = directory / "channels.json"
         if channels_file.exists():
             await load_channels_from_file(pool, channels_file)
         else:
-            logfire.warning("channels.json not found in directory", directory=directory)
+            logger.warning("channels.json not found in directory", extra={"directory": directory})
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory)
