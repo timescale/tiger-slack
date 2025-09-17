@@ -1,12 +1,12 @@
 {
   "display_information": {
-    "name": "your-bot-name",
+    "name": "tiger-slack-ingest",
     "description": "This bot ingests slack events into a Timescaledb database",
     "background_color": "#000000"
   },
   "features": {
     "bot_user": {
-      "display_name": "your-bot-name",
+      "display_name": "tiger-slack-ingest",
       "always_online": true
     }
   },
