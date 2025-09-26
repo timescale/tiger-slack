@@ -130,7 +130,7 @@ wheels = [
 
 [[package]]
 name = "logfire"
-version = "4.6.0"
+version = "4.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "executing" },
@@ -141,9 +141,9 @@ dependencies = [
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/19/fa/14cbd976e8ff77290c0c87f93c45029785537ffb84e2f5215416786cda11/logfire-4.6.0.tar.gz", hash = "sha256:974bc8f4efd3aa9df2d0c7b1d53b35dc4612ff5cee2be6c40dd65e5c26eab694", size = 533174, upload-time = "2025-09-10T14:56:42.168Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/67/53bc8c72ae2deac94fe9dc51b9bade27c3f378469cf02336ae22558f2f41/logfire-4.10.0.tar.gz", hash = "sha256:5c1021dac8258d78d5fd08a336a22027df432c42ba70e96eef6cac7d8476a67c", size = 540375, upload-time = "2025-09-24T17:57:17.078Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/04/9c/6384dc69601bfba19c1f5909a472b00cc4b5863f411ecf85be308beacf8f/logfire-4.6.0-py3-none-any.whl", hash = "sha256:d322844db7a2f1935976f2852a07e3753489ecc4e83fa288173b05a453bb1cbf", size = 219556, upload-time = "2025-09-10T14:56:37.278Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/41/bbf361fd3a0576adbadd173492a22fcb1a194128df7609e728038a4a4f2d/logfire-4.10.0-py3-none-any.whl", hash = "sha256:54514b6253eea4c4e28f587b55508cdacbc75a423670bb5147fc2af70c16f5d3", size = 223648, upload-time = "2025-09-24T17:57:13.905Z" },
 ]
 
 [package.optional-dependencies]
@@ -542,14 +542,14 @@ wheels = [
 
 [[package]]
 name = "slack-bolt"
-version = "1.24.0"
+version = "1.25.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "slack-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/06/af/95750d5c7f56be5266e6e4eb6b44f689423f44f0d2e2fa222e2c4c808305/slack_bolt-1.24.0.tar.gz", hash = "sha256:203249338454d3c8d096a6a1f4ebe09f48da2f572268835d1c5ed2a64eae898d", size = 131100, upload-time = "2025-08-27T18:51:40.026Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/0e/1231e1e89ffadeb0b8dcb8da63a22731139c14b7787ac289616238641fa4/slack_bolt-1.25.0.tar.gz", hash = "sha256:7e299854a24ba9c4700a7ca2cd54ab8e50a474502732a0a641ea232731ce24b4", size = 130673, upload-time = "2025-09-09T19:47:15.503Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/31/61985f6fe279e247789040f1c726a6b09e4c0388f1ba7265b1705956fed7/slack_bolt-1.24.0-py2.py3-none-any.whl", hash = "sha256:10245bac8b6768434885cc6e896a91daf815f1f566e83c0ddb6ad846d838248e", size = 230046, upload-time = "2025-08-27T18:51:38.326Z" },
+    { url = "https://files.pythonhosted.org/packages/58/6f/0e443e94914f20a8ce643048e31664bc9eb3080149fe966a76444fdc3cf3/slack_bolt-1.25.0-py2.py3-none-any.whl", hash = "sha256:d0b765c20bcd4bb7bd5e5966a19d49785153081573359a08892ad065f0a7b3dc", size = 229685, upload-time = "2025-09-09T19:47:14.19Z" },
 ]
 
 [[package]]
@@ -585,11 +585,11 @@ dev = [
 requires-dist = [
     { name = "aiocron", specifier = ">=2.1" },
     { name = "click", specifier = ">=8.2.1" },
-    { name = "logfire", extras = ["psycopg", "system-metrics"], specifier = ">=4.6.0" },
+    { name = "logfire", extras = ["psycopg", "system-metrics"], specifier = ">=4.10.0" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2.10" },
     { name = "python-dotenv", extras = ["cli"], specifier = ">=1.1.1" },
     { name = "semver", specifier = ">=3.0.4" },
-    { name = "slack-bolt", specifier = ">=1.23.0" },
+    { name = "slack-bolt", specifier = ">=1.25.0" },
     { name = "websockets", specifier = ">=15.0.1" },
 ]
 
