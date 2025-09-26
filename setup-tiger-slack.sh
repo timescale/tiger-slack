@@ -106,10 +106,6 @@ validate_slack_tokens() {
 
 # Create Slack app with specified manifest file
 create_slack_app() {
-    local manifest_file="$1"
-    local bot_token_var="$2"
-    local app_token_var="$3"
-
     echo "**** Slack App Creation ****"
     echo ""
     echo "This will guide you through the Slack app setup process."
@@ -135,16 +131,16 @@ create_slack_app() {
     read -p "Press Enter after selecting your workspace and clicking Next..."
 
     # Show manifest file content
-    if [[ -f "$manifest_file" ]]; then
+    if [[ -f slack-app-manifest.json ]]; then
         echo ""
         echo "App Manifest:"
         echo "----------------------------------------"
-        cat "$manifest_file"
+        cat slack-app-manifest.json
         echo ""
         echo "----------------------------------------"
         echo ""
     else
-        log_warning "$manifest_file not found - you'll need to create the app manually"
+        log_warning "slack-app-manifest.json not found - you'll need to create the app manually"
         return 1
     fi
 
@@ -157,10 +153,9 @@ create_slack_app() {
     echo "4. Click 'Generate Token and Scopes' → Add 'connections:write' scope → Generate"
     echo ""
 
-    local slack_app_token
     while true; do
-        read -p "Please paste your App-Level Token (starts with 'xapp-'): " slack_app_token
-        if [[ "$slack_app_token" =~ ^xapp- ]]; then
+        read -p "Please paste your App-Level Token (starts with 'xapp-'): " SLACK_APP_TOKEN_VAL
+        if [[ "$SLACK_APP_TOKEN_VAL" =~ ^xapp- ]]; then
             break
         else
             log_error "App token should start with 'xapp-'"
@@ -172,21 +167,16 @@ create_slack_app() {
     echo "6. After installation, copy the 'Bot User OAuth Token'"
     echo ""
 
-    local slack_bot_token
     while true; do
-        read -p "Please paste your Bot User OAuth Token (starts with 'xoxb-'): " slack_bot_token
-        if [[ "$slack_bot_token" =~ ^xoxb- ]]; then
+        read -p "Please paste your Bot User OAuth Token (starts with 'xoxb-'): " SLACK_BOT_TOKEN_VAL
+        if [[ "$SLACK_BOT_TOKEN_VAL" =~ ^xoxb- ]]; then
             break
         else
             log_error "Bot token should start with 'xoxb-'"
         fi
     done
 
-    # Validate tokens
-    if validate_slack_tokens "$slack_bot_token" "$slack_app_token"; then
-        # Store tokens in the specified variable names
-        eval "${bot_token_var}=\"$slack_bot_token\""
-        eval "${app_token_var}=\"$slack_app_token\""
+    if validate_slack_tokens "$SLACK_BOT_TOKEN_VAL" "$SLACK_APP_TOKEN_VAL"; then     
         log_success "Slack tokens validated successfully"
     else
         log_error "token validation failed. Please check your tokens and try again."
@@ -286,7 +276,7 @@ start_services() {
 main() {
     intro_message
     check_resume_or_fresh_start
-    create_slack_app "slack-app-manifest.json" "SLACK_BOT_TOKEN_VAL" "SLACK_APP_TOKEN_VAL"
+    create_slack_app
     get_logfire_token
     write_env_file
     start_services
