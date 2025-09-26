@@ -19,8 +19,6 @@ def setup_logging() -> None:
 
         # Set up all the logfire instrumentation
         logfire.instrument_psycopg()
-        logfire.instrument_pydantic_ai()
-        logfire.instrument_mcp()
         logfire.instrument_httpx()
         logfire.instrument_system_metrics(
             {
