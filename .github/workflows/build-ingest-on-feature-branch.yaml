@@ -1,0 +1,20 @@
+name: Build Docker MCP - Feature Branch Push
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - "ingest/**"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Workflow
+        uses: timescale/workflow-dispatch-action@main
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_AGENTS_TOKEN }}
+          owner: timescale
+          repo: tiger-agents-deploy
+          workflow_id: build.yaml
+          ref: "main"
+          inputs: '{"dockerfile_path": "./ingest/Dockerfile", "image_name": "tiger-slack-ingest", "repository": "tiger-slack", "sha": "${{ github.sha }}"}'
