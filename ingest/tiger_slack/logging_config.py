@@ -19,7 +19,6 @@ def setup_logging() -> None:
 
         # Set up all the logfire instrumentation
         logfire.instrument_psycopg()
-        logfire.instrument_httpx()
         logfire.instrument_system_metrics(
             {
                 "process.cpu.time": ["user", "system"],
