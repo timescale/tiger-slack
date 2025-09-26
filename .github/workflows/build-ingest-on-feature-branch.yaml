@@ -1,4 +1,4 @@
-name: Build Docker MCP - Feature Branch Push
+name: Build Docker Ingest - Feature Branch Push
 on:
   push:
     branches-ignore:
