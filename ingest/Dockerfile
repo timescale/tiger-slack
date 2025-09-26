@@ -15,7 +15,7 @@ WORKDIR /app
 
 # Copy uv configuration files and application code (needed for hatchling)
 COPY pyproject.toml uv.lock README.md ./
-COPY tiger_slack/ ./tiger_slack/
+COPY ./ingest/tiger_slack/ ./tiger_slack/
 
 # Install dependencies (now that tiger_slack/__init__.py is available for version detection)
 RUN uv sync --frozen
