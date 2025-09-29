@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - "ingest/**"
+      - .github/workflows/*ingest*
 jobs:
   build:
     runs-on: ubuntu-latest
