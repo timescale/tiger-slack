@@ -16,8 +16,8 @@ jobs:
           owner: timescale
           repo: tiger-agents-deploy
           workflow_id: build.yaml
-          ref: "main"
-          inputs: '{"dockerfile_path": "./ingest/Dockerfile", "image_name": "tiger-slack-ingest", "repository": "tiger-slack", "sha": "${{ github.sha }}"}'
+          ref: "mpeveler/feat-docker-context"
+          inputs: '{"docker_context": "./ingest", "image_name": "tiger-slack-ingest", "repository": "tiger-slack", "sha": "${{ github.sha }}"}'
 
   deploy:
     runs-on: ubuntu-latest
