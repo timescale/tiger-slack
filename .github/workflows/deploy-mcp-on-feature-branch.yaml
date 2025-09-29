@@ -1,0 +1,17 @@
+name: Deploy Feature Branch MCP
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Workflow
+        uses: timescale/workflow-dispatch-action@main
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_AGENTS_TOKEN }}
+          owner: timescale
+          repo: tiger-agents-deploy
+          workflow_id: deploy.yaml
+          ref: "main"
+          inputs: '{"repository": "tiger-slack-mcp", "sha": "${{ github.sha }}"}'

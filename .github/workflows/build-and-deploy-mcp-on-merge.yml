@@ -1,0 +1,34 @@
+name: Build and Deploy MCP - Merge main
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "mcp/**"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Workflow
+        uses: timescale/workflow-dispatch-action@main
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_AGENTS_TOKEN }}
+          owner: timescale
+          repo: tiger-agents-deploy
+          workflow_id: build.yaml
+          ref: "main"
+          inputs: '{"dockerfile_path": "./mcp/Dockerfile", "image_name": "tiger-slack-mcp-server", "repository": "tiger-slack", "sha": "${{ github.sha }}"}'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Dispatch Workflow
+        uses: timescale/workflow-dispatch-action@main
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_AGENTS_TOKEN }}
+          owner: timescale
+          repo: tiger-agents-deploy
+          workflow_id: deploy.yaml
+          ref: "main"
+          inputs: '{"repository": "tiger-slack-mcp-server", "sha": "${{ github.sha }}"}'
