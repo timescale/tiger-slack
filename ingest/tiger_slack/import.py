@@ -201,15 +201,51 @@ async def load_messages_from_file(
             raise
 
 
+async def worker(
+    pool: AsyncConnectionPool,
+    queue: asyncio.Queue[tuple[str, Path, str] | None],
+    worker_id: int,
+) -> None:
+    """Worker that processes files from the queue."""
+    with logfire.span("message_worker", worker_id=worker_id):
+        while True:
+            item = await queue.get()
+            if item is None:
+                queue.task_done()
+                break
+            channel_id, file, content = item
+            try:
+                await load_messages_from_file(pool, channel_id, file, content)
+            finally:
+                queue.task_done()
+
+
 @logfire.instrument("load_messages", extract_args=["directory"])
 async def load_messages(pool: AsyncConnectionPool, directory: Path) -> None:
+    queue: asyncio.Queue[tuple[str, Path, str] | None] = asyncio.Queue()
+    num_workers = 5
+
+    # Start worker tasks
+    workers = [
+        asyncio.create_task(worker(pool, queue, i)) for i in range(num_workers)
+    ]
+
+    # Populate the queue with files to process
     async for channel_id, file, content in channel_files(pool, directory):
-        await load_messages_from_file(pool, channel_id, file, content)
+        await queue.put((channel_id, file, content))
+
+    # Signal workers to exit by sending None
+    for _ in range(num_workers):
+        await queue.put(None)
+
+    # Wait for all workers to complete
+    await queue.join()
+    await asyncio.gather(*workers)
 
 
 @logfire.instrument("run_import")
 async def run_import(directory: Path):
-    async with AsyncConnectionPool(min_size=1, max_size=1) as pool:
+    async with AsyncConnectionPool(min_size=5, max_size=5) as pool:
         await pool.wait()
 
         async with pool.connection() as con:
