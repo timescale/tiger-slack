@@ -85,7 +85,6 @@ The app subscribes to these Slack events for real-time ingestion:
    ```bash
    SLACK_BOT_TOKEN="xoxb-your-bot-token"
    SLACK_APP_TOKEN="xapp-your-app-token"
-   SLACK_DOMAIN="your-workspace-name"
    ```
 
 ### Running the Ingest Service

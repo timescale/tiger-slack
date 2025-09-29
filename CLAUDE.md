@@ -66,7 +66,6 @@ npm run inspector           # Test with MCP Inspector
 # Slack API credentials
 SLACK_BOT_TOKEN="xoxb-..."
 SLACK_APP_TOKEN="xapp-..."
-SLACK_DOMAIN="your-workspace"
 
 # PostgreSQL connection details
 PGHOST="db"                    # or "localhost" for local development
@@ -171,21 +170,6 @@ If `LOGFIRE_TOKEN` is blank in `.env`:
   }
 }
 ```
-
-**Interactive Slack App Setup:**
-1. Run: `open https://api.slack.com/apps/`
-2. Instruct: "Click 'Create New App' → 'From a manifest' → Choose your workspace"
-3. Prompt user: "What is your workspace name? (for SLACK_DOMAIN)"
-4. Update `SLACK_DOMAIN` in `.env` with workspace name
-5. Instruct: "Paste the manifest above, then click 'Next' and 'Create'"
-6. Instruct: "Navigate to: Basic Information → App-Level Tokens"
-7. Instruct: "Click 'Generate Token and Scopes' → Add 'connections:write' scope → Generate"
-8. Prompt user: "Please paste your App-Level Token (starts with 'xapp-'):"
-9. Update `SLACK_APP_TOKEN` in `.env` with provided token
-10. Instruct: "Navigate to: Install App → Click 'Install to [Workspace]'"
-11. Instruct: "After installation, copy the 'Bot User OAuth Token'"
-12. Prompt user: "Please paste your Bot User OAuth Token (starts with 'xoxb-'):"
-13. Update `SLACK_BOT_TOKEN` in `.env` with provided token
 
 ### 4. Service Startup
 Run services and verify health:
