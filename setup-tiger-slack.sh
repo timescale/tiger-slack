@@ -12,7 +12,6 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Token storage - using regular variables instead of associative array for compatibility
-SLACK_DOMAIN_VAL=""
 SLACK_BOT_TOKEN_VAL=""
 SLACK_APP_TOKEN_VAL=""
 LOGFIRE_TOKEN_VAL=""
@@ -120,14 +119,6 @@ create_slack_app() {
 
     echo "1. Click 'Create New App' → 'From a manifest' → Choose your workspace"
 
-    # Ask for workspace name only on first app creation
-    if [[ -z "$SLACK_DOMAIN_VAL" ]]; then
-        echo ""
-        read -p "What is your Slack workspace name? (for SLACK_DOMAIN): " slack_domain
-        SLACK_DOMAIN_VAL="$slack_domain"
-        echo ""
-    fi
-
     read -p "Press Enter after selecting your workspace and clicking Next..."
 
     # Show manifest file content
@@ -208,7 +199,6 @@ write_env_file() {
 
     # Update tokens
     local token_vars=(
-        "SLACK_DOMAIN:$SLACK_DOMAIN_VAL"
         "SLACK_BOT_TOKEN:$SLACK_BOT_TOKEN_VAL"
         "SLACK_APP_TOKEN:$SLACK_APP_TOKEN_VAL"
         "LOGFIRE_TOKEN:$LOGFIRE_TOKEN_VAL"
