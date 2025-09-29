@@ -63,6 +63,7 @@ as $func$
         from slack.message_discard d
         where jsonb_path_match(_event, d.match, silent=>true)
     )
+    on conflict (channel_id, ts) do nothing
 $func$ language sql volatile security invoker
 ;
 
