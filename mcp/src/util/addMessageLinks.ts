@@ -19,10 +19,7 @@ export const initWorkspaceBaseUrl = async (): Promise<void> => {
     const data = await response.json();
 
     if (!data.ok) {
-      log.warn(
-        'An error occurred while getting the Slack url base. Will not return permalinks.',
-        { data },
-      );
+      throw new Error('auth.test request failed.');
     }
 
     workspaceBaseUrl = data?.url || null;
