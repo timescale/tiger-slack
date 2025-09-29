@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - "mcp/**"
+      - .github/workflows/*mcp*
 jobs:
   build:
     runs-on: ubuntu-latest
