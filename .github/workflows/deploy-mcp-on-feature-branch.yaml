@@ -13,5 +13,5 @@ jobs:
           owner: timescale
           repo: tiger-agents-deploy
           workflow_id: deploy.yaml
-          ref: "mpeveler/feat-docker-context"
+          ref: "main"
           inputs: '{"repository": "tiger-slack-mcp-server", "sha": "${{ github.sha }}"}'

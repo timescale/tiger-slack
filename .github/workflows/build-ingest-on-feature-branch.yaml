@@ -17,5 +17,5 @@ jobs:
           owner: timescale
           repo: tiger-agents-deploy
           workflow_id: build.yaml
-          ref: "mpeveler/feat-docker-context"
+          ref: "main"
           inputs: '{"docker_context": "./ingest", "image_name": "tiger-slack-ingest", "repository": "tiger-slack", "sha": "${{ github.sha }}"}'
