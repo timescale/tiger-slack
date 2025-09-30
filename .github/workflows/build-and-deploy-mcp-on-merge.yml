@@ -18,7 +18,14 @@ jobs:
           repo: tiger-agents-deploy
           workflow_id: build.yaml
           ref: "main"
-          inputs: '{"docker_context": "./mcp", "image_name": "tiger-slack-mcp-server", "repository": "tiger-slack", "sha": "${{ github.sha }}"}'
+          inputs: >
+            {
+              "docker_context": "./mcp",
+              "image_name": "tiger-slack-mcp-server",
+              "repository": "tiger-slack",
+              "sha": "${{ github.sha }}",
+              "latest": true
+            }
 
   deploy:
     runs-on: ubuntu-latest
@@ -32,4 +39,8 @@ jobs:
           repo: tiger-agents-deploy
           workflow_id: deploy.yaml
           ref: "main"
-          inputs: '{"repository": "tiger-slack-mcp-server", "sha": "${{ github.sha }}"}'
+          inputs: >
+            {
+              "repository": "tiger-slack-mcp-server",
+              "sha": "${{ github.sha }}"
+            }
