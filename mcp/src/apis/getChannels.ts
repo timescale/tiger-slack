@@ -25,7 +25,7 @@ export const getChannelsFactory: ApiFactory<
   typeof outputSchema,
   z.infer<(typeof outputSchema)['results']>
 > = ({ pgPool }) => ({
-  name: 'getChannels',
+  name: 'get_channels',
   method: 'get',
   route: '/channels',
   config: {

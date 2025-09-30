@@ -46,7 +46,7 @@ export const getMessageContextFactory: ApiFactory<
   typeof inputSchema,
   typeof outputSchema
 > = ({ pgPool }) => ({
-  name: 'getMessageContext',
+  name: 'get_message_context',
   method: 'get',
   route: '/message-context',
   config: {
