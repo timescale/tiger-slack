@@ -37,7 +37,7 @@ export const getThreadMessagesFactory: ApiFactory<
   typeof inputSchema,
   typeof outputSchema
 > = ({ pgPool }) => ({
-  name: 'getThreadMessages',
+  name: 'get_thread_messages',
   method: 'get',
   route: '/thread-messages',
   config: {

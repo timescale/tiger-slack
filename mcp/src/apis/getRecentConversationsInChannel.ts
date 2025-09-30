@@ -50,7 +50,7 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
   typeof inputSchema,
   typeof outputSchema
 > = ({ pgPool }) => ({
-  name: 'getRecentConversationsInChannel',
+  name: 'get_recent_conversations_in_channel',
   method: 'get',
   route: '/recent-conversations-in-channel',
   config: {

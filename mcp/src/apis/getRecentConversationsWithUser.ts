@@ -55,7 +55,7 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
   typeof inputSchema,
   typeof outputSchema
 > = ({ pgPool }) => ({
-  name: 'getRecentConversationsWithUser',
+  name: 'get_recent_conversations_with_user',
   method: 'get',
   route: '/recent-conversations-with-user',
   config: {
