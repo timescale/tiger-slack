@@ -184,27 +184,6 @@ on conflict (ts, channel_id) do nothing
 """
 
 
-async def load_messages_from_file(
-    pool: AsyncConnectionPool, channel_id: str, file: Path, content: str
-) -> None:
-    async with (
-        pool.connection() as con,
-        con.cursor() as cur,
-    ):
-        try:
-            async with con.transaction() as _:
-                with logfire.suppress_instrumentation():
-                    await cur.execute(
-                        MESSAGE_SQL, dict(channel_id=channel_id, json=content)
-                    )
-        except psycopg.Error as e:
-            logger.exception(
-                "failed to load json file",
-                extra={"channel_id": channel_id, "file": file, "error": str(e)},
-            )
-            raise
-
-
 async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
     async with (
         pool.connection() as con,
@@ -258,7 +237,6 @@ async def load_messages(pool: AsyncConnectionPool, directory: Path) -> None:
             num_messages=item_count,
         ):
             await insert_messages(pool, buffer)
-
 
 
 @logfire.instrument("run_import")
