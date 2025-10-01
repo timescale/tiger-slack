@@ -269,23 +269,23 @@ async def run_import(directory: Path):
         async with pool.connection() as con:
             await migrate_db(con)
 
-        # # Load users from users.json file
-        # users_file = directory / "users.json"
-        # if users_file.exists():
-        #     await load_users_from_file(pool, users_file)
-        # else:
-        #     logger.warning(
-        #         "users.json not found in directory", extra={"directory": directory}
-        #     )
+        # Load users from users.json file
+        users_file = directory / "users.json"
+        if users_file.exists():
+            await load_users_from_file(pool, users_file)
+        else:
+            logger.warning(
+                "users.json not found in directory", extra={"directory": directory}
+            )
 
-        # # Load channels from channels.json file
-        # channels_file = directory / "channels.json"
-        # if channels_file.exists():
-        #     await load_channels_from_file(pool, channels_file)
-        # else:
-        #     logger.warning(
-        #         "channels.json not found in directory", extra={"directory": directory}
-        #     )
+        # Load channels from channels.json file
+        channels_file = directory / "channels.json"
+        if channels_file.exists():
+            await load_channels_from_file(pool, channels_file)
+        else:
+            logger.warning(
+                "channels.json not found in directory", extra={"directory": directory}
+            )
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory)
