@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -54,12 +55,15 @@ async def channel_dirs(
 async def channel_files(
     pool: AsyncConnectionPool, directory: Path
 ) -> AsyncGenerator[tuple[str, Path, str]]:
+    all_files = []
     for channel_dir, channel_id in await channel_dirs(pool, directory):
-        with logfire.span(
-            "load_messages_for_channel", channel_dir=channel_dir, channel_id=channel_id
-        ) as _:
-            for file in channel_dir.glob("*.json"):
-                yield channel_id, file, file.read_text()
+        for file in channel_dir.glob("*.json"):
+            all_files.append((channel_id, file))
+
+    all_files.sort(key=lambda x: x[1].name)
+
+    for channel_id, file in all_files:
+        yield channel_id, file, file.read_text()
 
 
 @logfire.instrument("load_users_from_file", extract_args=["file_path"])
@@ -137,7 +141,7 @@ insert into slack.message
 )
 select
   slack.to_timestamptz(o->>'ts')
-, %(channel_id)s
+, o->>'channel_id'
 , o->>'team'
 , o->>'text'
 , o->>'type'
@@ -201,10 +205,60 @@ async def load_messages_from_file(
             raise
 
 
+async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
+    async with (
+        pool.connection() as con,
+        con.cursor() as cur,
+    ):
+        try:
+            async with con.transaction() as _:
+                with logfire.suppress_instrumentation():
+                    await cur.execute(
+                        MESSAGE_SQL, dict(json=content)
+                    )
+        except psycopg.Error as e:
+            logger.exception(
+                "failed to load json file",
+                extra={"error": str(e)},
+            )
+            raise
+
+
 @logfire.instrument("load_messages", extract_args=["directory"])
 async def load_messages(pool: AsyncConnectionPool, directory: Path) -> None:
+    buffer = ""
+    item_count = 0
     async for channel_id, file, content in channel_files(pool, directory):
-        await load_messages_from_file(pool, channel_id, file, content)
+        num_elements = len(re.findall(r"^    {$", content, re.MULTILINE))
+        content = re.sub(
+            r"^    {$",
+            f'    {{\n        "channel_id": "{channel_id}",',
+            content,
+            flags=re.MULTILINE,
+        )
+        if len(buffer) == 0:
+            buffer = content
+        else:
+            buffer = buffer.rstrip("]") + "," + content.lstrip("[")
+        item_count += num_elements
+        if item_count >= 500:
+            with logfire.span(
+                "loading_messages_batch",
+                channel_id=channel_id,
+                file=file,
+                num_messages=item_count,
+            ):
+                await insert_messages(pool, buffer)
+            buffer = ""
+            item_count = 0
+
+    if len(buffer) > 0:
+        with logfire.span(
+            "loading_messages_final_batch",
+            num_messages=item_count,
+        ):
+            await insert_messages(pool, buffer)
+
 
 
 @logfire.instrument("run_import")
@@ -215,23 +269,23 @@ async def run_import(directory: Path):
         async with pool.connection() as con:
             await migrate_db(con)
 
-        # Load users from users.json file
-        users_file = directory / "users.json"
-        if users_file.exists():
-            await load_users_from_file(pool, users_file)
-        else:
-            logger.warning(
-                "users.json not found in directory", extra={"directory": directory}
-            )
+        # # Load users from users.json file
+        # users_file = directory / "users.json"
+        # if users_file.exists():
+        #     await load_users_from_file(pool, users_file)
+        # else:
+        #     logger.warning(
+        #         "users.json not found in directory", extra={"directory": directory}
+        #     )
 
-        # Load channels from channels.json file
-        channels_file = directory / "channels.json"
-        if channels_file.exists():
-            await load_channels_from_file(pool, channels_file)
-        else:
-            logger.warning(
-                "channels.json not found in directory", extra={"directory": directory}
-            )
+        # # Load channels from channels.json file
+        # channels_file = directory / "channels.json"
+        # if channels_file.exists():
+        #     await load_channels_from_file(pool, channels_file)
+        # else:
+        #     logger.warning(
+        #         "channels.json not found in directory", extra={"directory": directory}
+        #     )
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory)
