@@ -5,13 +5,22 @@ import { ApiFactory } from '../shared/boilerplate/src/types.js';
 const inputSchema = {
   includeTimezone: z
     .boolean()
+    .default(true)
     .describe(
-      'If true, includes the timezones for each user. Not needed for most cases.',
+      'If true, includes the timezones for each user. Defaults to true.',
     ),
+  user_id: z
+    .string()
+    .optional()
+    .describe('The Slack user id (e.g. U0736TW20) of a single user to retrieve.'),
+  email: z
+    .string()
+    .optional()
+    .describe('The email address of a single user to retrieve.'),
   keyword: z
     .string()
     .min(0)
-    .nullable()
+    .optional()
     .describe(
       'Keyword to use to find partial matches on users. Will return users whose id (e.g. U0736TW20), name, real_name_normalized, or display_name_normalized contain the given keyword. This is case insensitive.',
     ),
@@ -33,12 +42,14 @@ export const getUsersFactory: ApiFactory<
   config: {
     title: 'Get users',
     description:
-      'Retrieves all users within the configured GitHub organization',
+      'Retrieves all users in the Slack workspace',
     inputSchema,
     outputSchema,
   },
   fn: async ({
     includeTimezone,
+    user_id,
+    email,
     keyword,
   }): Promise<{ results: z.infer<typeof zUser>[] }> => {
     const fields = [
@@ -50,24 +61,37 @@ export const getUsersFactory: ApiFactory<
       ...(includeTimezone ? ['tz'] : []),
     ];
 
-    const res = await pgPool.query<User>(
-      /* sql */ `
-SELECT ${fields.join(', ')}
-  FROM slack.user 
-  WHERE NOT deleted 
+    const args: string[] = []
+    
+    let query = `
+    SELECT ${fields.join(', ')}
+    FROM slack.user 
+    WHERE NOT deleted 
     AND NOT is_bot
-    AND (
-      $1::text IS NULL
-      OR id ILIKE $1
-      OR real_name_normalized ILIKE $1
-      OR display_name_normalized ILIKE $1
-      OR real_name ILIKE $1
-      OR display_name ILIKE $1
-      OR user_name ILIKE $1
-    )
-`,
-      [keyword ? `%${keyword}%` : null],
-    );
+    `
+    
+    if (user_id) {
+      query += `
+      AND id = $1
+      `
+      args.push(user_id)
+    } else if (email) {
+      query += `
+      AND email = $1
+      `
+      args.push(email)
+    } else if (keyword) {
+      query += `
+      AND (
+           display_name_normalized ilike $1
+        OR real_name_normalized ilike $1
+        OR user_name ilike $1
+      )
+      `
+      args.push(`%${keyword}%`)
+    }
+    
+    const res = await pgPool.query<User>(query, args);
 
     return {
       results: res.rows,

@@ -6,9 +6,9 @@ export interface ServerContext extends Record<string, unknown> {
 }
 
 export const zUser = z.object({
-  id: z.string(),
+  id: z.string().describe('The Slack user id (e.g. U012AB345CD)'),
   // team_id: z.string(),
-  user_name: z.string().describe('The unique slack username.'),
+  user_name: z.string().describe('The unique Slack username.'),
   real_name: z
     .string()
     .nullable()
@@ -38,14 +38,14 @@ export const zUser = z.object({
     .string()
     .optional()
     .nullable()
-    .describe("The user's timezone city/location (e.g. America/Chicago)."),
+    .describe("The user's full time zone name as recognized in the IANA time zone data (e.g. America/Chicago)."),
   // tz_label: z
   //   .string()
   //   .nullable()
   //   .describe("The user's timezone (e.g. Central Daylight Time)."),
   // tz_offset: z.number().nullable(),
   // deleted: z.boolean(),
-  is_bot: z.boolean().optional(),
+  // is_bot: z.boolean().optional(),
   // updated: z.number(),
 });
 
@@ -53,9 +53,9 @@ export type User = z.infer<typeof zUser>;
 
 const commonMessageFields = {
   ts: z.string().describe('The timestamp of the message'),
-  channel_id: z.string().describe('The channel ID the message was posted in'),
+  channel_id: z.string().describe('The Slack channel ID the message was posted in (e.g. C123ABC456)'),
   text: z.string().describe('The text content of the message'),
-  user_id: z.string().nullable().describe('The user ID of the message author'),
+  user_id: z.string().nullable().describe('The Slack user ID of the message author (e.g. U012AB345CD)'),
   thread_ts: z.string().nullable().describe('The thread timestamp, if a reply'),
   permalink: z.string().optional().describe('The hyperlink to the message'),
 };
@@ -80,7 +80,7 @@ export const zMessage = z
 export type Message = z.infer<typeof zMessage>;
 
 export const zChannel = z.object({
-  id: z.string().describe('The unique channel ID'),
+  id: z.string().describe('The unique Slack channel ID (e.g. C123ABC456)'),
   name: z.string().describe('The name of the channel'),
   messages: z.array(zMessage).describe('Messages in this channel'),
   topic: z.string().optional().nullable().describe('The channel topic'),
