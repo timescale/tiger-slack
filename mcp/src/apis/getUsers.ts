@@ -22,7 +22,7 @@ const inputSchema = {
     .min(0)
     .optional()
     .describe(
-      'Keyword to use to find partial matches on users. Will return users whose id (e.g. U0736TW20), name, real_name_normalized, or display_name_normalized contain the given keyword. This is case insensitive.',
+      'Keyword used to find users where user_name, real_name_normalized, or display_name_normalized contain the given keyword. This is case insensitive.',
     ),
 } as const;
 
@@ -42,7 +42,7 @@ export const getUsersFactory: ApiFactory<
   config: {
     title: 'Get users',
     description:
-      'Retrieves all users in the Slack workspace',
+      'Retrieves one or more users in the Slack workspace',
     inputSchema,
     outputSchema,
   },
