@@ -6,7 +6,7 @@ const inputSchema = {
   includeTimezone: z
     .boolean()
     .describe(
-      'If true, includes the timezones for each user. Not needed for most cases.',
+      'If true, includes the time zone for each user. Not needed for most cases.',
     ),
   keyword: z
     .string()
@@ -33,7 +33,7 @@ export const getUsersFactory: ApiFactory<
   config: {
     title: 'Get users',
     description:
-      'Retrieves all users within the configured GitHub organization',
+      'Retrieves all users in the Slack workspace',
     inputSchema,
     outputSchema,
   },
