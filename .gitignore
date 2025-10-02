@@ -2,3 +2,5 @@
 .idea
 .claude
 .mcp.json
+.DS_Store
+slack_export/
