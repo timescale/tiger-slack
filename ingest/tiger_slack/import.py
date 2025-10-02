@@ -5,6 +5,7 @@ import re
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
+import aiofiles
 import click
 import logfire
 import psycopg
@@ -54,7 +55,7 @@ async def channel_dirs(
 
 async def channel_files(
     pool: AsyncConnectionPool, directory: Path
-) -> AsyncGenerator[tuple[str, Path, str]]:
+) -> list[tuple[str, Path]]:
     all_files = []
     for channel_dir, channel_id in await channel_dirs(pool, directory):
         for file in channel_dir.glob("*.json"):
@@ -62,8 +63,7 @@ async def channel_files(
 
     all_files.sort(key=lambda x: x[1].name)
 
-    for channel_id, file in all_files:
-        yield channel_id, file, file.read_text()
+    return all_files
 
 
 @logfire.instrument("load_users_from_file", extract_args=["file_path"])
@@ -203,45 +203,84 @@ async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
             raise
 
 
-@logfire.instrument("load_messages", extract_args=["directory"])
-async def load_messages(pool: AsyncConnectionPool, directory: Path) -> None:
+async def process_file_worker(
+    pool: AsyncConnectionPool,
+    file_queue: asyncio.Queue[tuple[str, Path] | None],
+    worker_id: int,
+) -> None:
     buffer = ""
     item_count = 0
-    async for channel_id, file, content in channel_files(pool, directory):
-        num_elements = len(re.findall(r"^    {$", content, re.MULTILINE))
-        content = re.sub(
-            r"^    {$",
-            f'    {{\n        "channel_id": "{channel_id}",',
-            content,
-            flags=re.MULTILINE,
-        )
-        if len(buffer) == 0:
-            buffer = content
-        else:
-            buffer = buffer.rstrip("]") + "," + content.lstrip("[")
-        item_count += num_elements
-        if item_count >= 500:
-            with logfire.span(
-                "loading_messages_batch",
-                channel_id=channel_id,
-                file=file,
-                num_messages=item_count,
-            ):
-                await insert_messages(pool, buffer)
-            buffer = ""
-            item_count = 0
+
+    while True:
+        item = await file_queue.get()
+        if item is None:
+            break
+
+        channel_id, file = item
+
+        try:
+            async with aiofiles.open(file, mode="r") as f:
+                content = await f.read()
+
+            num_elements = len(re.findall(r"^    {$", content, re.MULTILINE))
+            content = re.sub(
+                r"^    {$",
+                f'    {{\n        "channel_id": "{channel_id}",',
+                content,
+                flags=re.MULTILINE,
+            )
+
+            if len(buffer) == 0:
+                buffer = content
+            else:
+                buffer = buffer.rstrip("]") + "," + content.lstrip("[")
+            item_count += num_elements
+
+            if item_count >= 500:
+                with logfire.span(
+                    "loading_messages_batch",
+                    worker_id=worker_id,
+                    channel_id=channel_id,
+                    file=file,
+                    num_messages=item_count,
+                ):
+                    await insert_messages(pool, buffer)
+                buffer = ""
+                item_count = 0
+        finally:
+            file_queue.task_done()
 
     if len(buffer) > 0:
         with logfire.span(
             "loading_messages_final_batch",
+            worker_id=worker_id,
             num_messages=item_count,
         ):
             await insert_messages(pool, buffer)
 
 
+@logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
+async def load_messages(pool: AsyncConnectionPool, directory: Path, num_workers: int = 4) -> None:
+    files = await channel_files(pool, directory)
+
+    with logfire.span("parallel_processing", num_files=len(files), num_workers=num_workers):
+        file_queue: asyncio.Queue[tuple[str, Path] | None] = asyncio.Queue()
+        for file_data in files:
+            await file_queue.put(file_data)
+
+        # Add sentinel values to signal workers to stop
+        for _ in range(num_workers):
+            await file_queue.put(None)
+
+        async with asyncio.TaskGroup() as tg:
+            for worker_id in range(num_workers):
+                tg.create_task(process_file_worker(pool, file_queue, worker_id))
+
+
 @logfire.instrument("run_import")
-async def run_import(directory: Path):
-    async with AsyncConnectionPool(min_size=1, max_size=1) as pool:
+async def run_import(directory: Path, num_workers: int = 4):
+    # Pool size: num_workers + 1 (extra connection for metadata operations)
+    async with AsyncConnectionPool(min_size=1, max_size=num_workers + 1) as pool:
         await pool.wait()
 
         async with pool.connection() as con:
@@ -266,7 +305,7 @@ async def run_import(directory: Path):
             )
 
         # Import message history from channel subdirectories
-        await load_messages(pool, directory)
+        await load_messages(pool, directory, num_workers)
 
 
 @click.command()
@@ -274,8 +313,14 @@ async def run_import(directory: Path):
     "directory",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
 )
-def main(directory: Path):
-    asyncio.run(run_import(directory))
+@click.option(
+    "--workers",
+    type=int,
+    default=5,
+    help="Number of parallel workers for processing files (default: 5)",
+)
+def main(directory: Path, workers: int):
+    asyncio.run(run_import(directory, workers))
 
 
 if __name__ == "__main__":
