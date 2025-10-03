@@ -2,18 +2,49 @@
 
 **Conversational Memory for AI Slack Bots**
 
-Tiger Slack gives AI assistants the ability to understand and engage with your team's conversations naturally. By providing real-time access to message history and context through a specialized MCP server, it enables AI bots to respond to questions with the same contextual awareness that humans have - understanding references to past discussions, ongoing projects, and team dynamics.
+Tiger Slack gives Slack-native AI assistants the ability to understand and engage with your team's conversations naturally. By providing real-time access to Slack message history and context through an MCP server, it enables AI bots to respond to questions with the same contextual awareness that humans have - understanding references to past discussions, ongoing projects, and team dynamics.
+
+Tiger Slack is the superpower behind [Eon](https://github.com/timescale/tiger-eon), TigerData's Slack-native AI assistant.
+
+Ready to get started? Jump to the [quick start](#quick-start).
 
 ## Overview
 
-This platform enables AI assistants to participate meaningfully in your team's conversations by giving them access to conversational context and history. When someone asks "What did we decide about the deployment?" or "Who was working on the API issue?", an AI bot powered by Tiger Slack can understand these references and provide informed responses, just like a team member would.
-
 Built for teams who want their AI assistants to:
-- 🤖 **Understand conversational context** and references to past discussions
-- 🔍 **Answer questions about project history** and decisions
-- 👥 **Know who's involved** in different topics and threads
-- 📝 **Follow ongoing conversations** and provide relevant input
-- 🧠 **Build conversational memory** across all team channels
+- **Understand conversational context** and references to past discussions
+- **Answer questions about project history** and decisions
+- **Know who's involved** in different topics and threads
+- **Follow ongoing conversations** and provide relevant input
+- **Build conversational memory** across all team channels
+
+## Key Components
+
+### **Ingest Service** (`ingest/`)
+
+The ingest service is a Python app that:
+- Connects to Slack via WebSocket (Socket Mode)
+- Captures messages, reactions, user changes, and channel updates in real-time
+- Runs scheduled jobs for user/channel synchronization
+
+The ingest service can process a Slack historical export into the database.
+
+See the [ingest README.md](/ingest/README.md) for more details.
+
+### **MCP Server** (`mcp/`)
+A Streamable HTTP Model Context Protocol server provides:
+- AI-accessible APIs for Slack data analysis
+- Channel and user browsing with intelligent filtering
+- Conversation retrieval with full threading context
+- Message permalink generation
+
+See the [mcp README.md](/mcp/README.md) for more details.
+
+### 🗄️ **TimescaleDB Database**
+Tiger Slack uses a TimescaleDB database to store the Slack content.
+- High-throughput message ingestion
+- Efficient time-based queries and analytics
+- Hypertable partitioning for optimal performance
+- Full-text search capabilities across message content
 
 ## Architecture
 
@@ -39,43 +70,17 @@ graph TB
     M -->|Structured Data| C
 ```
 
-## Key Components
-
-### 🔄 **Ingest Service** (`ingest/`)
-Python-based real-time data pipeline that:
-- Connects to Slack via WebSocket (Socket Mode)
-- Captures messages, reactions, user changes, and channel updates
-- Imports historical data from Slack workspace exports
-- Runs scheduled jobs for user/channel synchronization
-- Provides comprehensive observability through Logfire
-
-See the [ingest README.md](/ingest/README.md) for more details.
-
-### 🗄️ **TimescaleDB Database**
-Time-series PostgreSQL database optimized for:
-- High-throughput message ingestion
-- Efficient time-based queries and analytics
-- Hypertable partitioning for optimal performance
-- Full-text search capabilities across message content
-
-### 🔌 **MCP Server** (`mcp/`)
-TypeScript server implementing Model Context Protocol to provide:
-- AI-accessible APIs for Slack data analysis
-- Channel and user browsing with intelligent filtering
-- Conversation retrieval with full threading context
-- Message permalink generation
-- Real-time performance monitoring
-
-See the [mcp README.md](/mcp/README.md) for more details.
-
-### 📊 **Observability Stack**
-Full-stack monitoring through Logfire integration:
-- Distributed tracing across all components
-- Real-time performance metrics
-- Error tracking and debugging
-- AI-powered log analysis via Claude Code
-
 ## Quick Start
+
+Start by cloning the repo.
+
+```bash
+git clone --recurse-submodules git@github.com:timescale/tiger-slack.git
+cd tiger-slack
+```
+
+The ingest service requires an app configured in Slack with proper privileges and tokens.
+You can run a script to [automate this setup](#automated-setup), or you can [do it manually](#manual-setup).
 
 ### Automated Setup
 
@@ -85,71 +90,41 @@ Execute the following script to guide you through the setup process:
 ./setup-tiger-slack.sh
 ```
 
-This will automatically guide you through the Slack app creation and persist the tokens required to ingest message from Slack.
-
 ### Manual Setup
-If you prefer to configure manually:
 
-1. **Clone and Setup**
-   ```bash
-   git clone --recurse-submodules git@github.com:timescale/tiger-slack.git
-   cd tiger-slack
-   cp .env.sample .env  # Configure your Slack tokens
-   ```
+Create a Slack App
 
-2. **Start Services**
-   ```bash
-   docker compose up -d     # Launch all services via Docker Compose
-   docker compose logs -f   # Monitor service health
-   ```
+1. Edit the [slack-app-manifest.json](/slack-app-manifest.json) file to have the names and descriptions you want to use.
+2. [Create a new Slack app](https://api.slack.com/apps?new_app=1)
+3. Choose to create an app **from a manifest**.
+4. Pick your workspace and click `Next`.
+5. Paste that manifest configuration in the input field provided and click `Next`.
+6. Review and verify that the configuration you entered matches the summary and click `Create`.
+7. Navigate to: Basic Information → App-Level Tokens
+8. Click 'Generate Token and Scopes' → Add 'connections:write' scope → Generate
+9. Save your `SLACK_APP_TOKEN` (It starts with `xapp-`).
+10. Navigate to: Install App → Click 'Install to [Workspace]'
+11. After installation, save the 'Bot User OAuth Token' A.K.A. `SLACK_BOT_TOKEN` (It starts with `xoxb-`)
 
-3. **Connect to Claude Code**
-   To connect to the MCP server running in docker, run:
+```bash
+cp .env.sample .env
+```
 
-   ```bash
-   claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp
-   ```
+Add the Slack tokens to the .env file.
 
-   To use the MCP server without docker, run this after building the mcp:
 
-   ```bash
-   export PGHOST=localhost
-   export PGPORT=5432
-   export PGUSER=tsdbadmin
-   export PGDATABASE=tsdb
-   claude mcp add -s project tiger-slack node /absolute/path/to/tiger-slack/mcp/dist/index.js stdio
-   ```
+### Running the System
 
-   If you do not use Claude Code, you can use the [@modelcontextprovider/inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector) by running
+After setting up the .env file, you are ready to run the system!
 
-   ```bash
-   npm run inspector
-   ```
+Build and run the system in docker compose:
 
-   from the ./mcp subdirectory.
+```bash
+docker compose up -d --build
+```
 
-4. **Connect to Logfire (Optional)**
-   Note: if you do not wish to use Logfire, leave the LOGFIRE_TOKEN variable empty
-   To enable AI-powered tracing analysis and debugging:
+#### Other system lifecycle commands
 
-   ```bash
-   claude mcp add -s project logfire -e LOGFIRE_READ_TOKEN="your-token-here" -- uvx logfire-mcp@latest
-   ```
-
-5. **Start Analyzing**
-   Ask Claude: *"Show me recent conversations in #engineering"*
-
-## Suggested Roll-out Strategy
-
-1. First, use a [manual execution of the user/channel jobs](/ingest/README.md#manual-job-execution) to create the database schema and populate the users and channels.
-2. [Deploy the ingest service](/ingest/README.md#running-the-ingest-service) to begin accumulating Slack events in real-time.
-3. At some point after you have begun accumulating new Slack events in real time, get a historical export from Slack and load it with [the import process](/ingest/README.md#historical-data-import).
-
-This strategy ensures no gaps in data.
-
-## Docker Management
-
-### Service Lifecycle
 ```bash
 docker compose up -d          # Start all services in background
 docker compose down           # Stop all services
@@ -167,10 +142,63 @@ docker system prune -f --volumes
 docker compose up -d --build
 ```
 
-### Database Access
+## Dev/Test Exploration
+
+Use [Claude Code](https://www.claude.com/product/claude-code) and/or the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to exercise the MCP Server.
+
+### Using Claude Code
+
+1. **Connect Claude Code to the MCP Server**
+
+   To connect to the MCP server running in docker, run:
+
+   ```bash
+   claude mcp add -s project --transport http tiger-slack http://localhost:3001/mcp
+   ```
+
+   To use the MCP server via stdio (not docker), run this after building the mcp:
+
+   ```bash
+   export PGHOST=localhost
+   export PGPORT=5432
+   export PGUSER=tsdbadmin
+   export PGDATABASE=tsdb
+   export LOGFIRE_TOKEN=<your-logfire-token> # optional. sends traces from the mcp server to logfire
+   claude mcp add -s project tiger-slack node /absolute/path/to/tiger-slack/mcp/dist/index.js stdio
+   ```
+
+2. **Connect to Logfire (Optional)**
+   Giving Claude Code the ability to "see" the tracing data for the project can drive powerful AI insights.
+
+   ```bash
+   claude mcp add -s project logfire -e LOGFIRE_READ_TOKEN="your-token-here" -- uvx logfire-mcp@latest
+   ```
+
+4. **Start Analyzing**
+   Ask Claude: *"Show me recent conversations in #engineering"*
+
+### Using MCP Inspector
+
+You can use the MCP Inspector to interact with the MCP server via a web UI. Run the following from the [mcp](/mcp) directory:
+
 ```bash
-psql -d "postgres://tsdbadmin:password@localhost:5432/tsdb"
+npm run inspector
 ```
+
+## Suggested Roll-out Strategy
+
+1. First, use a [manual execution of the user/channel jobs](/ingest/README.md#manual-job-execution) to create the database schema and populate the users and channels.
+2. [Deploy the ingest service](/ingest/README.md#running-the-ingest-service) to begin accumulating Slack events in real-time.
+3. At some point after you have begun accumulating new Slack events in real time, get a historical export from Slack and load it with [the import process](/ingest/README.md#historical-data-import).
+
+This strategy ensures no gaps in data.
+
+## **Observability Stack**
+Tiger Slack features full-stack monitoring via Logfire integration:
+- Distributed tracing across all components
+- Real-time performance metrics
+- Error tracking and debugging
+- AI-powered log analysis via MCP and Claude Code
 
 ## License
 
