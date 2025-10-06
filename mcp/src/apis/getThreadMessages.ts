@@ -1,6 +1,6 @@
+import { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import { type Message, ServerContext, zMessage, zUser } from '../types.js';
-import { ApiFactory } from '../shared/boilerplate/src/types.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { getUsersMap } from '../util/getUsersMap.js';

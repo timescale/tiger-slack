@@ -1,3 +1,4 @@
+import { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import {
   Channel,
@@ -9,7 +10,6 @@ import {
 import { findChannel } from '../util/findChannel.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { messagesToTree } from '../util/messagesToTree.js';
-import { ApiFactory } from '../shared/boilerplate/src/types.js';
 
 const inputSchema = {
   channelName: z
@@ -84,14 +84,14 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
       // Get messages in the channel within the lookback period
       const result = await client.query<Message>(
         /* sql */ `
-SELECT 
-  ts::text, 
-  channel_id, 
-  text, 
-  user_id, 
+SELECT
+  ts::text,
+  channel_id,
+  text,
+  user_id,
   thread_ts::text
 FROM slack.message
-WHERE channel_id = $1 
+WHERE channel_id = $1
   AND ts >= (NOW() - $2::INTERVAL)
 ORDER BY ts DESC
 LIMIT $3`,
