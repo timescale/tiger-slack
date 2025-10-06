@@ -1,6 +1,6 @@
+import { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import { ServerContext, User, zUser } from '../types.js';
-import { ApiFactory } from '../shared/boilerplate/src/types.js';
 
 const inputSchema = {
   includeTimezone: z
@@ -53,8 +53,8 @@ export const getUsersFactory: ApiFactory<
     const res = await pgPool.query<User>(
       /* sql */ `
 SELECT ${fields.join(', ')}
-  FROM slack.user 
-  WHERE NOT deleted 
+  FROM slack.user
+  WHERE NOT deleted
     AND NOT is_bot
     AND (
       $1::text IS NULL

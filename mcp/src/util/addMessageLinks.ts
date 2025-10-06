@@ -1,4 +1,4 @@
-import { log } from '../shared/boilerplate/src/logger.js';
+import { log } from '@tigerdata/mcp-boilerplate';
 import { Message } from '../types.js';
 import { convertTimestampToTs } from './formatTs.js';
 
