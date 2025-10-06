@@ -169,6 +169,7 @@ uv run python -m tiger_slack.jobs
 ## Historical Data Import
 
 The ingest app can import historical Slack data from workspace exports, allowing you to backfill message history and user/channel data that predates the real-time ingestion setup.
+You can follow [these instructions](https://slack.com/help/articles/201658943-Export-your-workspace-data) to obtain an export of your Slack workspace.
 
 ### Slack Export Format
 
