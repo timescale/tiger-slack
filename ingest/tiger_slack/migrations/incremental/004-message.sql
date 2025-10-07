@@ -42,6 +42,7 @@ create table slack.message
 with
 ( tsdb.hypertable
 , tsdb.partition_column='ts'
+, tsdb.chunk_interval='7 days'
 , tsdb.enable_columnstore=true
 , tsdb.segmentby = 'channel_id'
 , tsdb.orderby = 'ts desc'
@@ -52,7 +53,15 @@ create index on slack.message (channel_id, thread_ts, ts asc) where thread_ts is
 create index on slack.message (channel_id, thread_ts, ts desc) where thread_ts is not null;
 create index on slack.message (user_id, thread_ts, channel_id) where thread_ts is not null;
 
-select set_chunk_time_interval('slack.message', interval '7 days');
-select add_columnstore_policy('slack.message', after => interval '45 days');
-select enable_chunk_skipping('slack.message', 'thread_ts');
-select enable_chunk_skipping('slack.message', 'event_ts');
+call public.add_columnstore_policy('slack.message'::regclass, after => interval '45 days');
+
+do $block$
+declare
+    _sql text;
+begin
+    _sql = format($$alter database %I set timescaledb.enable_chunk_skipping = on;$$, current_database());
+    execute _sql;
+end
+$block$;
+perform public.enable_chunk_skipping('slack.message'::regclass, 'thread_ts');
+perform public.enable_chunk_skipping('slack.message'::regclass, 'event_ts');
