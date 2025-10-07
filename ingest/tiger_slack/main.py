@@ -65,15 +65,14 @@ async def main() -> None:
     loop = asyncio.get_running_loop()
     loop.set_exception_handler(exception_handler)
 
+    await migrate_db()
+
     async with AsyncConnectionPool(
         check=AsyncConnectionPool.check_connection,
         configure=configure_database_connection,
         reset=reset_database_connection,
     ) as pool:
         await pool.wait()
-
-        async with pool.connection() as con:
-            await migrate_db(con)
 
         app = AsyncApp(
             token=slack_bot_token,
