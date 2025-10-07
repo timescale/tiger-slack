@@ -13,4 +13,13 @@ create table if not exists slack.event
 with
 ( tsdb.hypertable
 , tsdb.partition_column='event_ts'
+, tsdb.enable_columnstore=true
+, tsdb.orderby = 'event_ts desc'
+, tsdb.sparse_index='bloom(type),bloom(subtype)'
 );
+create index on slack.event (event_ts desc) where error is not null;
+
+select set_chunk_time_interval('slack.event', interval '7 days');
+select add_columnstore_policy('slack.event', after => interval '7 days');
+select add_retention_policy('slack.event', interval '90 days');
+
