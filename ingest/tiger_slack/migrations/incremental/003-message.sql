@@ -54,14 +54,5 @@ create index on slack.message (channel_id, thread_ts, ts desc) where thread_ts i
 create index on slack.message (user_id, thread_ts, channel_id) where thread_ts is not null;
 
 call public.add_columnstore_policy('slack.message'::regclass, after => interval '45 days');
-
-do $block$
-declare
-    _sql text;
-begin
-    _sql = format($$alter database %I set timescaledb.enable_chunk_skipping = on;$$, current_database());
-    execute _sql;
-end
-$block$;
 perform public.enable_chunk_skipping('slack.message'::regclass, 'thread_ts');
 perform public.enable_chunk_skipping('slack.message'::regclass, 'event_ts');
