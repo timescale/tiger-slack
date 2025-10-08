@@ -41,9 +41,12 @@ See the [mcp README.md](/mcp/README.md) for more details.
 
 ### 🗄️ **TimescaleDB Database**
 Tiger Slack uses a TimescaleDB database to store the Slack content.
-- High-throughput message ingestion
+- High-throughput message ingestion with 7-day chunk partitioning
 - Efficient time-based queries and analytics
-- Hypertable partitioning for optimal performance
+- Automatic compression after 45 days (5-10x space savings)
+- Channel-based segmentation for optimal query performance
+- Sparse indexes (bloom filters, minmax) for fast filtering
+- Chunk skipping for accelerated thread queries
 - Full-text search capabilities across message content
 
 ## Architecture

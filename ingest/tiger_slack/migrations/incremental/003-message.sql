@@ -42,10 +42,15 @@ create table slack.message
 with
 ( tsdb.hypertable
 , tsdb.partition_column='ts'
+, tsdb.chunk_interval='7 days'
+, tsdb.enable_columnstore=true
 , tsdb.segmentby = 'channel_id'
-, tsdb.orderby = 'ts desc, thread_ts desc'
+, tsdb.orderby = 'ts desc'
+, tsdb.sparse_index='bloom(user_id),bloom(subtype),bloom(type),minmax(thread_ts),minmax(event_ts)'
 );
 create unique index on slack.message (channel_id, ts desc);
 create index on slack.message (channel_id, thread_ts, ts asc) where thread_ts is not null;
 create index on slack.message (channel_id, thread_ts, ts desc) where thread_ts is not null;
 create index on slack.message (user_id, thread_ts, channel_id) where thread_ts is not null;
+
+call public.add_columnstore_policy('slack.message'::regclass, after => interval '45 days');

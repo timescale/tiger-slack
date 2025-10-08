@@ -32,6 +32,41 @@ async def try_migration_lock(cur: AsyncCursor) -> bool:
     return bool(row[0])
 
 
+async def retry_migration_lock(cur: AsyncCursor) -> None:
+    """Attempt to acquire transaction-level advisory lock for migration with retries"""
+    for i in range(1, MAX_LOCK_ATTEMPTS + 1):
+        locked = await try_migration_lock(cur)
+        if locked:
+            break
+        if i == MAX_LOCK_ATTEMPTS:
+            logger.error(
+                f"failed to get an advisory lock to check database version after {i} attempts"
+            )
+            raise RuntimeError("Could not acquire migration lock")
+        logger.info(
+            f"sleeping {LOCK_SLEEP_SECONDS} seconds before another lock attempt"
+        )
+        await asyncio.sleep(LOCK_SLEEP_SECONDS)
+
+
+@logfire.instrument("install_timescaledb")
+async def install_timescaledb() -> None:
+    """Ensures that a suitable version of the timescaledb extension is installed
+    
+    This must happen in a separate db connection.
+    """
+    async with (
+        await AsyncConnection.connect() as con,
+        con.cursor() as cur,
+        con.transaction() as _,
+    ):
+        # Try to acquire migration lock
+        await retry_migration_lock(cur)
+        # ensure that a suitable version of the timescaledb extension is installed
+        sql = Path(__file__).parent.joinpath("sql", "timescaledb.sql").read_text()
+        await cur.execute(sql)
+
+
 @logfire.instrument("run_init", extract_args=False)
 async def run_init(cur: AsyncCursor) -> None:
     """Initialize migration infrastructure tables"""
@@ -127,27 +162,21 @@ async def set_version(cur: AsyncCursor, version: Version) -> None:
 
 
 @logfire.instrument("migrate_db", extract_args=False)
-async def migrate_db(con: AsyncConnection) -> None:
+async def migrate_db() -> None:
     """Run database migrations"""
     target_version = Version.parse(__version__)
+    
+    # ensure a suitable version of timescaledb is installed
+    # use a separate db connection for this so GUC changes take effect
+    await install_timescaledb()
+    
     async with (
+        await AsyncConnection.connect() as con,
         con.cursor() as cur,
         con.transaction() as _,
     ):
         # Try to acquire migration lock
-        for i in range(1, MAX_LOCK_ATTEMPTS + 1):
-            locked = await try_migration_lock(cur)
-            if locked:
-                break
-            if i == MAX_LOCK_ATTEMPTS:
-                logger.error(
-                    f"failed to get an advisory lock to check database version after {i} attempts"
-                )
-                raise RuntimeError("Could not acquire migration lock")
-            logger.info(
-                f"sleeping {LOCK_SLEEP_SECONDS} seconds before another lock attempt"
-            )
-            await asyncio.sleep(LOCK_SLEEP_SECONDS)
+        await retry_migration_lock(cur)
 
         # Initialize migration infrastructure
         await run_init(cur)
@@ -175,10 +204,7 @@ async def main():
     setup_logging()
 
     logger.info("Starting database migration...")
-
-    async with await AsyncConnection.connect() as con:
-        await migrate_db(con)
-
+    await migrate_db()
     logger.info("Database migration completed successfully")
 
 

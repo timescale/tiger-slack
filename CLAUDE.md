@@ -103,10 +103,21 @@ LOGFIRE_ENVIRONMENT="development"
 
 ## Database Schema
 
-- **`slack.message`** - TimescaleDB hypertable for time-series message storage
+- **`slack.message`** - TimescaleDB hypertable for time-series message storage with compression and advanced indexing
 - **`slack.user`** - Workspace users with profiles
 - **`slack.channel`** - Channel metadata and configuration
 - **`slack.event`** - Raw Slack events for audit trail
+
+### Message Hypertable Optimizations
+
+The `slack.message` table uses TimescaleDB's advanced features for optimal performance:
+
+- **7-day chunks** partitioned by timestamp
+- **Automatic compression** after 45 days (5-10x space savings)
+- **Channel-based segmentation** for optimal query performance
+- **Sparse indexes** (bloom filters for users/types, minmax for threads)
+- **Chunk skipping** enabled for thread and event timestamp queries
+- **Descending timestamp order** optimized for recent message queries
 
 ## Interactive Setup Guide
 

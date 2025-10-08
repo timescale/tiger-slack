@@ -277,14 +277,50 @@ async def load_messages(pool: AsyncConnectionPool, directory: Path, num_workers:
                 tg.create_task(process_file_worker(pool, file_queue, worker_id))
 
 
+@logfire.instrument("compress_old_messages", extract_args=False)
+async def compress_old_messages(pool: AsyncConnectionPool) -> None:
+    async with (
+        pool.connection() as con,
+        con.cursor() as cur
+    ):
+        # get the compression policy interval
+        await cur.execute("""
+              select config->>'compress_after' as compress_after
+              from timescaledb_information.jobs
+              where proc_name = 'policy_compression'
+              and hypertable_schema = 'slack'
+              and hypertable_name = 'message'
+          """)
+        row = await cur.fetchone()
+        if not row or not row[0]:
+            logger.info("no compression policy set on slack.message")
+            return
+        compress_after = row[0]  # e.g., "45 days"
+        
+        # get a list of chunks to compress
+        await cur.execute("""
+            select public.show_chunks('slack.message', older_than => %s::text::interval)
+        """, (compress_after,))
+        chunks = [row[0] for row in await cur.fetchall()]
+        if not chunks:
+            logger.info("no chunks from slack.message to compress")
+            return
+
+        # compress each chunk
+        for chunk in chunks:
+            with logfire.span("compressing_chunk", chunk=chunk):
+                await cur.execute("""
+                      select public.compress_chunk(%s::text::regclass, if_not_compressed => true)
+                  """, (chunk,))
+
+
 @logfire.instrument("run_import")
 async def run_import(directory: Path, num_workers: int = 4):
+    await migrate_db()
+    
     # Pool size: num_workers + 1 (extra connection for metadata operations)
     async with AsyncConnectionPool(min_size=1, max_size=num_workers + 1) as pool:
         await pool.wait()
-
-        async with pool.connection() as con:
-            await migrate_db(con)
 
         # Load users from users.json file
         users_file = directory / "users.json"
@@ -306,6 +342,8 @@ async def run_import(directory: Path, num_workers: int = 4):
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory, num_workers)
+        # Compress old messages
+        await compress_old_messages(pool)
 
 
 @click.command()
