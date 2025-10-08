@@ -62,20 +62,3 @@ begin
     ;
 end
 $block$;
-
--- set timescaledb.enable_chunk_skipping to 'on' if not already
-do $block$
-declare
-    _sql text;
-    _setting text;
-begin
-    select setting into _setting
-    from pg_settings
-    where name = 'timescaledb.enable_chunk_skipping'
-    ;
-    if _setting is distinct from 'on' then
-        _sql = format($$alter database %I set timescaledb.enable_chunk_skipping = on;$$, current_database());
-        execute _sql;
-    end if;
-end
-$block$;
