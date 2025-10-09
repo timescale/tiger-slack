@@ -58,6 +58,9 @@ async def main() -> None:
     assert slack_app_token is not None, (
         "SLACK_APP_TOKEN environment variable is missing!"
     )
+    pg_min_pool_size: int = int(os.getenv("PG_MIN_POOL_SIZE", "5"))
+    pg_max_pool_size: int = int(os.getenv("PG_MAX_POOL_SIZE", "10"))
+    assert pg_max_pool_size == 0 or pg_max_pool_size > pg_min_pool_size
 
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
@@ -71,6 +74,9 @@ async def main() -> None:
         check=AsyncConnectionPool.check_connection,
         configure=configure_database_connection,
         reset=reset_database_connection,
+        name="tiger_slack_ingest",
+        min_size=pg_min_pool_size,
+        max_size=pg_max_pool_size,
     ) as pool:
         await pool.wait()
 
