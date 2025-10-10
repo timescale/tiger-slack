@@ -37,7 +37,7 @@ export const getChannelsFactory: ApiFactory<
   fn: async ({ keyword }): Promise<{ results: z.infer<typeof zChannelWithoutMessages>[] }> => {
     const res = await pgPool.query(
       /* sql */ `
-SELECT id, channel_name, topic, purpose
+SELECT id, name, topic, purpose
   FROM slack.channel
   WHERE NOT is_archived
   AND (

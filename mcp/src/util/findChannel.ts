@@ -13,7 +13,7 @@ export const findChannel = async (
 ): Promise<Channel[]> => {
   const res = await pgPool.query(
     /* sql */ `
-SELECT id, channel_name, topic, purpose
+SELECT id, name, topic, purpose
   FROM slack.channel
   WHERE
     (
