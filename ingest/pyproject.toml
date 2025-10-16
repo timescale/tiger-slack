@@ -28,6 +28,7 @@ path = "tiger_slack/__init__.py"
 dev = [
     "ruff>=0.13.1",
     "pyright>=1.1.390",
+    "pytest>=8.4.2",
 ]
 
 [tool.ruff]

@@ -15,6 +15,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
+from tiger_slack.utils import remove_null_bytes
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 setup_logging()
@@ -196,7 +197,7 @@ async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
                 async with con.transaction() as _:
                     with logfire.suppress_instrumentation():
                         await cur.execute(
-                            MESSAGE_SQL, dict(json=content)
+                            MESSAGE_SQL, dict(json=remove_null_bytes(content, True))
                         )
             except psycopg.Error as e:
                 logger.exception(

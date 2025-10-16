@@ -9,6 +9,8 @@ from psycopg_pool import AsyncConnectionPool
 from slack_bolt.app.async_app import AsyncApp
 from slack_bolt.context.ack.async_ack import AsyncAck
 
+from tiger_slack.utils import remove_null_bytes
+
 _agent_trigger = asyncio.Queue()
 
 
@@ -63,7 +65,7 @@ async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
         con.transaction() as _,
         con.cursor() as cur,
     ):
-        await cur.execute("select slack.insert_message(%s)", (Jsonb(event),))
+        await cur.execute("select slack.insert_message(%s)", (Jsonb(remove_null_bytes(event)),))
 
 
 @logfire.instrument("update_message", extract_args=False)
@@ -73,7 +75,7 @@ async def update_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
         con.transaction() as _,
         con.cursor() as cur,
     ):
-        await cur.execute("select slack.update_message(%s)", (Jsonb(event),))
+        await cur.execute("select slack.update_message(%s)", (Jsonb(remove_null_bytes(event)),))
 
 
 @logfire.instrument("delete_message", extract_args=False)
