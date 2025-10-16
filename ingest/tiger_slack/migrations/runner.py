@@ -8,7 +8,7 @@ from dotenv import find_dotenv, load_dotenv
 from psycopg import AsyncConnection, AsyncCursor
 from semver import Version
 
-from tiger_slack import __version__
+from tiger_slack import __migrations_version__
 from tiger_slack.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -164,12 +164,12 @@ async def set_version(cur: AsyncCursor, version: Version) -> None:
 @logfire.instrument("migrate_db", extract_args=False)
 async def migrate_db() -> None:
     """Run database migrations"""
-    target_version = Version.parse(__version__)
-    
+    target_version = Version.parse(__migrations_version__)
+
     # ensure a suitable version of timescaledb is installed
     # use a separate db connection for this so GUC changes take effect
     await install_timescaledb()
-    
+
     async with (
         await AsyncConnection.connect() as con,
         con.cursor() as cur,

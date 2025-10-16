@@ -1,6 +1,6 @@
 {
   "name": "tiger-slack-mcp-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server to expose an API around your Slack database",
   "license": "Apache-2.0",
   "author": "Timescale, Inc.",
