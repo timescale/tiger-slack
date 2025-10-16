@@ -40,6 +40,7 @@ def remove_null_bytes(obj: T, escaped: bool = False) -> T:
         if escaped:
             return re.sub(r'(?<!\\)\\u0000', '', obj)
         else:
+            # \u0000 is equivalent to \x00 for null byte in Python strings
             return obj.replace("\x00", "")  # type: ignore[return-value]
     elif isinstance(obj, list):
         return [remove_null_bytes(item) for item in obj]  # type: ignore[return-value]

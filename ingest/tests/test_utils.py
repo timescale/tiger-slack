@@ -11,7 +11,7 @@ from tiger_slack.utils import remove_null_bytes
         ("Hello World", "Hello World"),
         ("Hello\x00World", "HelloWorld"),
         ("\x00Hello\x00World\x00Test\x00", "HelloWorldTest"),
-        ("Hello\u0000World", "HelloWorld"),  # \u0000 and \x00 are equivalent
+        ("Hello\u0000World", "HelloWorld"),
         ("Hello\\u0000World", "Hello\\u0000World"),
         ("Hello\\u0000World\x00", "Hello\\u0000World"),
         ("Hello\x00\\u0000World", "Hello\\u0000World"),
