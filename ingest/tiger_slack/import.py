@@ -74,12 +74,13 @@ async def load_users_from_file(pool: AsyncConnectionPool, file_path: Path) -> No
                 users_data = json.loads(file_path.read_text())
 
             with logfire.span("loading_users", num_users=len(users_data)):
-                for user in users_data:
-                    async with con.transaction() as _:
-                        event = {"user": user}
-                        await cur.execute(
-                            "select * from slack.upsert_user(%s)", (Jsonb(event),)
-                        )
+                with logfire.suppress_instrumentation():
+                    for user in users_data:
+                        async with con.transaction() as _:
+                            event = {"user": user}
+                            await cur.execute(
+                                "select * from slack.upsert_user(%s)", (Jsonb(event),)
+                            )
     except Exception as e:
         logger.exception(
             "failed to load users from file",
@@ -96,12 +97,13 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
                 channels_data = json.loads(file_path.read_text())
 
             with logfire.span("loading_channels", num_channels=len(channels_data)):
-                for channel in channels_data:
-                    async with con.transaction() as _:
-                        event = {"channel": channel}
-                        await cur.execute(
-                            "select * from slack.upsert_channel(%s)", (Jsonb(event),)
-                        )
+                with logfire.suppress_instrumentation():
+                    for channel in channels_data:
+                        async with con.transaction() as _:
+                            event = {"channel": channel}
+                            await cur.execute(
+                                "select * from slack.upsert_channel(%s)", (Jsonb(event),)
+                            )
     except Exception as e:
         logger.exception(
             "failed to load channels from file",
@@ -185,22 +187,23 @@ on conflict (ts, channel_id) do nothing
 
 
 async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
-    async with (
-        pool.connection() as con,
-        con.cursor() as cur,
-    ):
-        try:
-            async with con.transaction() as _:
-                with logfire.suppress_instrumentation():
-                    await cur.execute(
-                        MESSAGE_SQL, dict(json=content)
-                    )
-        except psycopg.Error as e:
-            logger.exception(
-                "failed to load json file",
-                extra={"error": str(e)},
-            )
-            raise
+    with logfire.suppress_instrumentation():
+        async with (
+            pool.connection() as con,
+            con.cursor() as cur,
+        ):
+            try:
+                async with con.transaction() as _:
+                    with logfire.suppress_instrumentation():
+                        await cur.execute(
+                            MESSAGE_SQL, dict(json=content)
+                        )
+            except psycopg.Error as e:
+                logger.exception(
+                    "failed to load json file",
+                    extra={"error": str(e)},
+                )
+                raise
 
 
 async def process_file_worker(
@@ -210,6 +213,7 @@ async def process_file_worker(
 ) -> None:
     buffer = ""
     item_count = 0
+    files: list[tuple[str, str]] = []
 
     while True:
         item = await file_queue.get()
@@ -217,6 +221,7 @@ async def process_file_worker(
             break
 
         channel_id, file = item
+        files.append((channel_id, str(file.relative_to(file.parent.parent))))
 
         try:
             async with aiofiles.open(file, mode="r") as f:
@@ -240,13 +245,13 @@ async def process_file_worker(
                 with logfire.span(
                     "loading_messages_batch",
                     worker_id=worker_id,
-                    channel_id=channel_id,
-                    file=file,
+                    files=files,
                     num_messages=item_count,
                 ):
                     await insert_messages(pool, buffer)
                 buffer = ""
                 item_count = 0
+                files = []
         finally:
             file_queue.task_done()
 
@@ -254,6 +259,7 @@ async def process_file_worker(
         with logfire.span(
             "loading_messages_final_batch",
             worker_id=worker_id,
+            files=files,
             num_messages=item_count,
         ):
             await insert_messages(pool, buffer)
@@ -296,7 +302,7 @@ async def compress_old_messages(pool: AsyncConnectionPool) -> None:
             logger.info("no compression policy set on slack.message")
             return
         compress_after = row[0]  # e.g., "45 days"
-        
+
         # get a list of chunks to compress
         await cur.execute("""
             select public.show_chunks('slack.message', older_than => %s::text::interval)
@@ -317,7 +323,7 @@ async def compress_old_messages(pool: AsyncConnectionPool) -> None:
 @logfire.instrument("run_import")
 async def run_import(directory: Path, num_workers: int = 4):
     await migrate_db()
-    
+
     # Pool size: num_workers + 1 (extra connection for metadata operations)
     async with AsyncConnectionPool(min_size=1, max_size=num_workers + 1) as pool:
         await pool.wait()
