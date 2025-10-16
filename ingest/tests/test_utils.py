@@ -32,10 +32,10 @@ from tiger_slack.utils import remove_null_bytes
     ],
 )
 def test_remove_null_bytes(input_val, expected):
-    """Test that actual null bytes (\\x00) are removed from strings."""
+    """Test that actual null bytes are removed from strings."""
     assert remove_null_bytes(input_val) == expected
 
 
 def test_remove_null_bytes_escaped():
-    """Test that escaped null bytes (\\u0000) are removed from strings."""
+    """Test that escaped null bytes are removed from strings."""
     assert remove_null_bytes("Hello\\u0000World\\\\u0000Word", escaped=True) == "HelloWorld\\\\u0000Word"
