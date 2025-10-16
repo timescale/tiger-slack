@@ -213,7 +213,7 @@ async def process_file_worker(
 ) -> None:
     buffer = ""
     item_count = 0
-    files: list[str] = []
+    files: list[tuple[str, str]] = []
 
     while True:
         item = await file_queue.get()
@@ -221,7 +221,7 @@ async def process_file_worker(
             break
 
         channel_id, file = item
-        files.append(str(file.relative_to(file.parent.parent)))
+        files.append((channel_id, str(file.relative_to(file.parent.parent))))
 
         try:
             async with aiofiles.open(file, mode="r") as f:
@@ -245,7 +245,6 @@ async def process_file_worker(
                 with logfire.span(
                     "loading_messages_batch",
                     worker_id=worker_id,
-                    channel_id=channel_id,
                     files=files,
                     num_messages=item_count,
                 ):
