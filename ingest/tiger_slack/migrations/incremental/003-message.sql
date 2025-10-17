@@ -46,7 +46,7 @@ with
 , tsdb.enable_columnstore=true
 , tsdb.segmentby = 'channel_id'
 , tsdb.orderby = 'ts desc'
-, tsdb.sparse_index='bloom(user_id),bloom(subtype),bloom(type),minmax(thread_ts),minmax(event_ts)'
+, tsdb.sparse_index='minmax(thread_ts),minmax(event_ts)'
 );
 create unique index on slack.message (channel_id, ts desc);
 create index on slack.message (channel_id, thread_ts, ts asc) where thread_ts is not null;

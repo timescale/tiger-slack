@@ -24,12 +24,13 @@ begin
         ) x
         where
         (
-            (x.major = 2 and x.minor >= 22)
+            (x.major = 2 and x.minor = 22 and x.patch >= 1)
+            or (x.major = 2 and x.minor > 22)
             or (x.major > 2)
         )
         ;
         if not found then
-            raise exception 'timescaledb extension version 2.22 or greater is required';
+            raise exception 'timescaledb extension version 2.22.1 or greater is required. please upgrade';
         end if;
     else
         -- no. is it available in a version we support?
@@ -49,14 +50,15 @@ begin
         ) x
         where 
         (
-            (x.major = 2 and x.minor >= 22)
+            (x.major = 2 and x.minor = 22 and x.patch >= 1)
+            or (x.major = 2 and x.minor > 22)
             or (x.major > 2)
         )
         ;
         if found then
             create extension if not exists timescaledb with schema public;
         else
-            raise exception 'timescaledb extension version 2.22 or greater is required';
+            raise exception 'timescaledb extension version 2.22.1 or greater is required but not available';
         end if;
     end if
     ;
