@@ -17,7 +17,7 @@ with
 , tsdb.chunk_interval='7 days'
 , tsdb.enable_columnstore=true
 , tsdb.orderby = 'event_ts desc'
-, tsdb.sparse_index='bloom(type),bloom(subtype),minmax(id)'
+, tsdb.sparse_index='minmax(id)'
 );
 create index on slack.event (event_ts desc) where error is not null;
 create index on slack.event (type, subtype);
