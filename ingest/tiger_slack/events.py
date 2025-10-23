@@ -1,4 +1,3 @@
-import asyncio
 import re
 import traceback
 from typing import Any
@@ -11,8 +10,6 @@ from slack_bolt.app.async_app import AsyncApp
 from slack_bolt.context.ack.async_ack import AsyncAck
 
 from tiger_slack.utils import remove_null_bytes
-
-_agent_trigger = asyncio.Queue()
 
 
 def diagnostic_to_dict(d: psycopg.errors.Diagnostic) -> dict[str, Any]:
