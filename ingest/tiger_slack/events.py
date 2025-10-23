@@ -1,4 +1,5 @@
 import asyncio
+import re
 import traceback
 from typing import Any
 
@@ -127,7 +128,7 @@ async def insert_event(
 
 async def event_router(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
     match event.get("type"):
-        case "channel_created" | "channel_renamed":
+        case "channel_created" | "channel_rename":
             await upsert_channel(pool, event)
         case "user_change" | "user_profile_changed" | "team_join":
             await upsert_user(pool, event)
@@ -171,11 +172,6 @@ async def register_handlers(app: AsyncApp, pool: AsyncConnectionPool) -> None:
                 await insert_event(pool, event, error)
 
     app.message("")(event_handler)
-    app.event("message")(event_handler)
-    app.event("channel_created")(event_handler)
-    app.event("channel_renamed")(event_handler)
-    app.event("reaction_added")(event_handler)
-    app.event("reaction_removed")(event_handler)
-    app.event("team_join")(event_handler)
-    app.event("user_change")(event_handler)
-    app.event("user_profile_changed")(event_handler)
+    
+    # listen to all events
+    app.event(re.compile(r".+"))(event_handler)
