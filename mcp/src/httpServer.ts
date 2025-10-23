@@ -7,4 +7,5 @@ export const { registerCleanupFn } = httpServerFactory({
   ...serverInfo,
   context,
   apiFactories,
+  stateful: false,
 });
