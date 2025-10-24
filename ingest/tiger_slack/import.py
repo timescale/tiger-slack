@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import re
-from collections.abc import AsyncGenerator
+from datetime import date, datetime
 from pathlib import Path
 
 import aiofiles
@@ -15,7 +15,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
-from tiger_slack.utils import remove_null_bytes
+from tiger_slack.utils import parse_since_flag, remove_null_bytes
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=True))
 setup_logging()
@@ -55,12 +55,28 @@ async def channel_dirs(
 
 
 async def channel_files(
-    pool: AsyncConnectionPool, directory: Path
+    pool: AsyncConnectionPool, directory: Path, since: date | None = None
 ) -> list[tuple[str, Path]]:
     all_files = []
     for channel_dir, channel_id in await channel_dirs(pool, directory):
         for file in channel_dir.glob("*.json"):
-            all_files.append((channel_id, file))
+            date_match = re.match(r'^(\d{4}-\d{2}-\d{2})\.json$', file.name)
+            if date_match:
+                file_date_str = date_match.group(1)
+                try:
+                    file_date = datetime.strptime(file_date_str, "%Y-%m-%d").date()
+                    if since is None or file_date >= since:
+                        all_files.append((channel_id, file))
+                except ValueError:
+                    logger.warning(
+                        f"Skipping file with invalid date format in filename: {file}",
+                        extra={"channel_id": channel_id, "filename": file.name}
+                    )
+            else:
+                logger.warning(
+                    f"Skipping file with non-standard filename: {file}",
+                    extra={"channel_id": channel_id, "filename": file.name}
+                )
 
     all_files.sort(key=lambda x: x[1].name)
 
@@ -267,8 +283,8 @@ async def process_file_worker(
 
 
 @logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
-async def load_messages(pool: AsyncConnectionPool, directory: Path, num_workers: int = 4) -> None:
-    files = await channel_files(pool, directory)
+async def load_messages(pool: AsyncConnectionPool, directory: Path, num_workers: int = 4, since: date | None = None) -> None:
+    files = await channel_files(pool, directory, since)
 
     with logfire.span("parallel_processing", num_files=len(files), num_workers=num_workers):
         file_queue: asyncio.Queue[tuple[str, Path] | None] = asyncio.Queue()
@@ -322,10 +338,9 @@ async def compress_old_messages(pool: AsyncConnectionPool) -> None:
 
 
 @logfire.instrument("run_import")
-async def run_import(directory: Path, num_workers: int = 4):
+async def run_import(directory: Path, num_workers: int, since: date | None = None):
     await migrate_db()
 
-    # Pool size: num_workers + 1 (extra connection for metadata operations)
     async with AsyncConnectionPool(min_size=1, max_size=num_workers + 1) as pool:
         await pool.wait()
 
@@ -348,7 +363,7 @@ async def run_import(directory: Path, num_workers: int = 4):
             )
 
         # Import message history from channel subdirectories
-        await load_messages(pool, directory, num_workers)
+        await load_messages(pool, directory, num_workers, since)
         # Compress old messages
         await compress_old_messages(pool)
 
@@ -364,8 +379,24 @@ async def run_import(directory: Path, num_workers: int = 4):
     default=5,
     help="Number of parallel workers for processing files (default: 5)",
 )
-def main(directory: Path, workers: int):
-    asyncio.run(run_import(directory, workers))
+@click.option(
+    "--since",
+    type=str,
+    default=None,
+    help="Only import messages since this date. Format: YYYY-MM-DD or duration (e.g., 7M, 30D, 1Y, 4W)",
+)
+def main(directory: Path, workers: int, since: str | None):
+    # Parse the since flag if provided
+    since_date: date | None = None
+    if since is not None:
+        try:
+            since_date = parse_since_flag(since)
+            logger.info(f"Importing messages since {since_date}")
+        except ValueError as e:
+            logger.error(str(e))
+            raise click.ClickException(str(e))
+
+    asyncio.run(run_import(directory, workers, since_date))
 
 
 if __name__ == "__main__":

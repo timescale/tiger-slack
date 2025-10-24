@@ -1,7 +1,9 @@
 import re
+from datetime import date, datetime
 from typing import TypeVar
 
 import logfire
+from dateutil.relativedelta import relativedelta
 from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
 
@@ -47,3 +49,55 @@ def remove_null_bytes(obj: T, escaped: bool = False) -> T:
     elif isinstance(obj, dict):
         return {key: remove_null_bytes(value) for key, value in obj.items()}  # type: ignore[return-value]
     return obj
+
+
+def parse_since_flag(since_str: str) -> date:
+    """Parse a --since flag value into a date object.
+
+    Supports two formats:
+    1. Absolute date: YYYY-MM-DD (e.g., "2025-01-15")
+    2. Duration: <number><unit> where unit is D (days), W (weeks), M (months), or Y (years)
+       (e.g., "7M" for 7 months ago, "30D" for 30 days ago)
+
+    Duration calculations are calendar-aware (using dateutil.relativedelta) to handle
+    edge cases like varying month lengths and leap years correctly.
+
+    Args:
+        since_str: The input string to parse
+
+    Returns:
+        A date object representing the cutoff date
+
+    Raises:
+        ValueError: If the input string is not in a recognized format
+    """
+    # Try parsing as absolute date first (YYYY-MM-DD)
+    try:
+        return datetime.strptime(since_str, "%Y-%m-%d").date()
+    except ValueError:
+        pass
+
+    # Try parsing as duration (e.g., 7M, 30D, 1Y, 4W)
+    duration_match = re.match(r'^(\d+)([DWMY])$', since_str, re.IGNORECASE)
+    if duration_match:
+        amount = int(duration_match.group(1))
+        unit = duration_match.group(2)
+        if unit:
+            unit = unit.upper()
+
+        today = date.today()
+
+        if unit == 'D':
+            return today - relativedelta(days=amount)
+        elif unit == 'W':
+            return today - relativedelta(weeks=amount)
+        elif unit == 'M':
+            return today - relativedelta(months=amount)
+        elif unit == 'Y':
+            return today - relativedelta(years=amount)
+
+    # If we get here, the format is invalid
+    raise ValueError(
+        f"Invalid --since format: '{since_str}'. "
+        f"Expected YYYY-MM-DD or duration format like '7M', '30D', '1Y', '4W'"
+    )
