@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/timescale-tiger-slack-badge.png)](https://mseep.ai/app/timescale-tiger-slack)
+
 # Tiger Slack
 
 **Conversational Memory for AI Slack Bots**
