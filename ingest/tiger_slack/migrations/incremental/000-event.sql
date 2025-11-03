@@ -23,6 +23,5 @@ create index on slack.event (event_ts desc) where error is not null;
 create index on slack.event (type, subtype);
 create index on slack.event (id);
 
-call public.add_columnstore_policy('slack.event'::regclass, after => interval '7 days');
 perform public.add_retention_policy('slack.event'::regclass, interval '90 days');
 
