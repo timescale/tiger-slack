@@ -1,6 +1,6 @@
 {
   "name": "tiger-slack-mcp-server",
-  "version": "0.2.1",
+  "version": "0.2.2snpm ",
   "description": "MCP server to expose an API around your Slack database",
   "license": "Apache-2.0",
   "author": "Timescale, Inc.",
@@ -24,7 +24,7 @@
     "lint:fix": "eslint --fix"
   },
   "dependencies": {
-    "@tigerdata/mcp-boilerplate": "^0.4.2",
+    "@tigerdata/mcp-boilerplate": "^0.4.3",
     "dotenv": "^17.2.0",
     "pg": "^8.16.3",
     "zod": "^3.23.8"
