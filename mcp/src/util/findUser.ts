@@ -4,13 +4,14 @@ import { User } from '../types.js';
 export const findUser = async (
   pgPool: Pool,
   username: string,
+  includeBots = true,
 ): Promise<User[]> => {
   const res = await pgPool.query<User>(
     /* sql */ `
 SELECT id, user_name, real_name, display_name, email
   FROM slack.user
   WHERE
-    NOT deleted AND NOT is_bot AND (
+    NOT deleted ${!includeBots ? 'AND NOT is_bot' : ''} AND (
       id = $1
       OR user_name = $1
       OR real_name ILIKE $1
