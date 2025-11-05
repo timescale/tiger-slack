@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { ServerContext, User, zUser } from '../types.js';
 
 const inputSchema = {
+  includeBots: z
+    .boolean()
+    .describe('If true, will include users that are bots.'),
   includeTimezone: z
     .boolean()
     .describe(
@@ -32,12 +35,12 @@ export const getUsersFactory: ApiFactory<
   route: '/users',
   config: {
     title: 'Get users',
-    description:
-      'Retrieves all users in the Slack workspace',
+    description: 'Retrieves all users in the Slack workspace',
     inputSchema,
     outputSchema,
   },
   fn: async ({
+    includeBots,
     includeTimezone,
     keyword,
   }): Promise<{ results: z.infer<typeof zUser>[] }> => {
@@ -55,7 +58,7 @@ export const getUsersFactory: ApiFactory<
 SELECT ${fields.join(', ')}
   FROM slack.user
   WHERE NOT deleted
-    AND NOT is_bot
+  ${includeBots ? '' : 'AND NOT is_bot'}  
     AND (
       $1::text IS NULL
       OR id ILIKE $1
