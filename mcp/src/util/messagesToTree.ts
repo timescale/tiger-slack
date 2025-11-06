@@ -26,6 +26,18 @@ export const messagesToTree = (
       row.permalink = generatePermalink(row);
     }
 
+    // prune superfluous Field fields
+    if (row.files?.length) {
+      row.files = row.files.map((x) => ({
+        id: x.id,
+        name: x.name,
+        size: x.size,
+        title: x.title,
+        mimetype: x.mimetype,
+        url_private_download: x.url_private_download,
+      }));
+    }
+
     const channel = (channels[row.channel_id] ??= {
       id: row.channel_id,
       name: '',

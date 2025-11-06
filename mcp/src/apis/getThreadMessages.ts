@@ -10,10 +10,15 @@ const inputSchema = {
     .string()
     .min(1)
     .describe('The ID of the channel to fetch messages from.'),
+  includeFiles: z
+    .boolean()
+    .describe(
+      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
+    ),
   includePermalinks: z
     .boolean()
     .describe(
-      'An optional parameter to determine whether or not permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
+      'Specifies if permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
     ),
   ts: z
     .string()
@@ -46,13 +51,27 @@ export const getThreadMessagesFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ channel, includePermalinks, ts }): Promise<{
+  fn: async ({
+    channel,
+    includeFiles,
+    includePermalinks,
+    ts,
+  }): Promise<{
     messages: z.infer<typeof zMessage>[];
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
+    const fields = [
+      'ts::text',
+      'channel_id',
+      'text',
+      'm.user_id',
+      'thread_ts::text',
+      ...(includeFiles ? ['files::jsonb'] : []),
+    ];
+
     const result = await pgPool.query<Message>(
       /* sql */ `
-SELECT ts::text, channel_id, text, m.user_id, thread_ts::text FROM slack.message m
+  SELECT ${fields} FROM slack.message m
   WHERE m.channel_id = $1 AND (m.thread_ts = $2 OR m.ts = $2)
   ORDER BY m.ts ASC`,
       [channel, convertTsToTimestamp(ts)],
