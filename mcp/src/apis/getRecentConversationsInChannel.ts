@@ -10,12 +10,18 @@ import {
 import { findChannel } from '../util/findChannel.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { messagesToTree } from '../util/messagesToTree.js';
+import { getMessageFields } from '../util/messageFields.js';
 
 const inputSchema = {
   channelName: z
     .string()
     .describe(
       'The Slack channel to fetch messages for. Can be the channel id or name. Returns an error if multiple channels match.',
+    ),
+  includeFiles: z
+    .boolean()
+    .describe(
+      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
     ),
   includePermalinks: z
     .boolean()
@@ -60,7 +66,13 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ channelName, includePermalinks, lookbackInterval, limit }): Promise<{
+  fn: async ({
+    channelName,
+    includeFiles,
+    includePermalinks,
+    lookbackInterval,
+    limit,
+  }): Promise<{
     channel: z.infer<typeof zChannel>;
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
@@ -85,11 +97,7 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
       const result = await client.query<Message>(
         /* sql */ `
 SELECT
-  ts::text,
-  channel_id,
-  text,
-  user_id,
-  thread_ts::text
+  ${getMessageFields(includeFiles)}
 FROM slack.message
 WHERE channel_id = $1
   AND ts >= (NOW() - $2::INTERVAL)

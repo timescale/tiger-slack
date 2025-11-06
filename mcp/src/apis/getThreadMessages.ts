@@ -4,6 +4,7 @@ import { type Message, ServerContext, zMessage, zUser } from '../types.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { getUsersMap } from '../util/getUsersMap.js';
+import { getMessageFields } from '../util/messageFields.js';
 
 const inputSchema = {
   channel: z
@@ -60,18 +61,9 @@ export const getThreadMessagesFactory: ApiFactory<
     messages: z.infer<typeof zMessage>[];
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
-    const fields = [
-      'ts::text',
-      'channel_id',
-      'text',
-      'm.user_id',
-      'thread_ts::text',
-      ...(includeFiles ? ['files::jsonb'] : []),
-    ];
-
     const result = await pgPool.query<Message>(
       /* sql */ `
-  SELECT ${fields} FROM slack.message m
+  SELECT ${getMessageFields(includeFiles)} FROM slack.message m
   WHERE m.channel_id = $1 AND (m.thread_ts = $2 OR m.ts = $2)
   ORDER BY m.ts ASC`,
       [channel, convertTsToTimestamp(ts)],
