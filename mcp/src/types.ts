@@ -53,6 +53,17 @@ export const zUser = z.object({
 
 export type User = z.infer<typeof zUser>;
 
+export const zFile = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    size: z.number(),
+    title: z.string(),
+    mimetype: z.string(),
+    url_private_download: z.string(),
+  })
+  .describe('A file associated with a Slack message');
+
 const commonMessageFields = {
   ts: z.string().describe('The timestamp of the message'),
   channel_id: z
@@ -60,6 +71,7 @@ const commonMessageFields = {
     .describe(
       'The Slack channel ID the message was posted in (e.g. C123ABC456)',
     ),
+  files: z.array(zFile).optional().nullable(),
   text: z.string().describe('The text content of the message'),
   user_id: z
     .string()

@@ -6,12 +6,18 @@ import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { getUsersMap } from '../util/getUsersMap.js';
+import { getMessageFields } from '../util/messageFields.js';
 
 const inputSchema = {
   username: z
     .string()
     .describe(
       'The Slack user to fetch messages for. Can be the id, username, real name, display name, or email. Returns an error if multiple users match.',
+    ),
+  includeFiles: z
+    .boolean()
+    .describe(
+      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
     ),
   includePermalinks: z
     .boolean()
@@ -67,6 +73,7 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
   },
   fn: async ({
     username,
+    includeFiles,
     includePermalinks,
     lookbackInterval,
     limit,
@@ -96,7 +103,7 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-  SELECT * FROM slack.message
+  SELECT ${getMessageFields(includeFiles)} FROM slack.message
   WHERE user_id = $1 AND ts >= (NOW() - $2::INTERVAL)
   ORDER BY ts DESC
   LIMIT $4

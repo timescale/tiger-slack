@@ -6,6 +6,7 @@ import { messagesToTree } from '../util/messagesToTree.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';
+import { getMessageFields } from '../util/messageFields.js';
 
 const inputSchema = {
   ts: z
@@ -16,6 +17,11 @@ const inputSchema = {
   channel: z
     .string()
     .describe('The ID of the channel the message was posted in.'),
+  includeFiles: z
+    .boolean()
+    .describe(
+      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
+    ),
   limit: z.coerce
     .number()
     .min(1)
@@ -56,7 +62,13 @@ export const getMessageContextFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ ts, channel, window, limit }): Promise<{
+  fn: async ({
+    ts,
+    channel,
+    includeFiles,
+    window,
+    limit,
+  }): Promise<{
     channels: Record<string, z.infer<typeof zChannel>>;
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
@@ -65,7 +77,7 @@ export const getMessageContextFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-SELECT * FROM slack.message
+SELECT ${getMessageFields(includeFiles)} FROM slack.message
 WHERE ts = $1 AND channel_id = $2
 LIMIT 1
 `,
