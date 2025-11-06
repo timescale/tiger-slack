@@ -26,7 +26,7 @@ export const messagesToTree = (
       row.permalink = generatePermalink(row);
     }
 
-    // prune superfluous Field fields
+    // prune superfluous File fields
     if (row.files?.length) {
       row.files = row.files.map((x) => ({
         id: x.id,
