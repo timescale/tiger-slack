@@ -8,15 +8,12 @@ export const getMessageFields = ({
   includeFiles?: boolean;
 }): string =>
   [
-    'ts::text',
+    `ts${coerceType ? '::text' : ''}`,
     'channel_id',
     'text',
     'user_id',
-    'thread_ts::text',
-    ...(includeFiles ? ['files::jsonb'] : []),
+    `thread_ts${coerceType ? '::text' : ''}`,
+    ...(includeFiles ? [`files${coerceType ? '::jsonb' : ''}`] : []),
   ]
-    .map((x) => {
-      const column = coerceType ? x : x.replace(/::.+$/, '');
-      return `${messageTableAlias ? `${messageTableAlias}.${column}` : column}`;
-    })
+    .map((x) => `${messageTableAlias ? `${messageTableAlias}.${x}` : x}`)
     .join(',');
