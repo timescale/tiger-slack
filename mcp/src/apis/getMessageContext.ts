@@ -77,12 +77,13 @@ export const getMessageContextFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-SELECT ${getMessageFields(includeFiles)} FROM slack.message
+SELECT ${getMessageFields({ includeFiles, coerceType: false })} FROM slack.message
 WHERE ts = $1 AND channel_id = $2
 LIMIT 1
 `,
           '$3',
           '$4',
+          includeFiles,
         ),
         [convertTsToTimestamp(ts), channel, window || 5, limit || 1000],
       );

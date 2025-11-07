@@ -1,8 +1,23 @@
+import { getMessageFields } from './messageFields.js';
+
 export const selectExpandedMessages = (
   targetMessagesSql: string,
   window: string,
   limit: string,
-): string => /* sql */ `
+  includeFiles: boolean,
+): string => {
+  const mAliasedFields = getMessageFields({
+    messageTableAlias: 'm',
+    includeFiles,
+    coerceType: false,
+  });
+
+  const fields = getMessageFields({
+    includeFiles,
+    coerceType: false,
+  });
+
+  return /* sql */ `
 -- Start by selecting the target messages
 WITH
 target_messages AS (
@@ -12,7 +27,7 @@ target_messages AS (
 -- Break the complex OR join into three separate, index-optimized joins
 -- Join 1: Messages in same thread as target (m.thread_ts = tm.thread_ts)
 thread_same AS (
-  SELECT m.ts, m.channel_id, m.thread_ts, m.text, m.user_id, tm.ts as target_ts, tm.thread_ts as target_thread_ts
+  SELECT ${mAliasedFields}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.thread_ts = tm.thread_ts
   WHERE tm.thread_ts IS NOT NULL
@@ -20,14 +35,14 @@ thread_same AS (
 
 -- Join 2: Replies to target message (m.thread_ts = tm.ts)
 thread_replies AS (
-  SELECT m.ts, m.channel_id, m.thread_ts, m.text, m.user_id, tm.ts as target_ts, tm.thread_ts as target_thread_ts  
+  SELECT ${mAliasedFields}, tm.ts as target_ts, tm.thread_ts as target_thread_ts  
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.thread_ts = tm.ts
 ),
 
 -- Join 3: Target is reply to thread root (m.ts = tm.thread_ts)
 thread_roots AS (
-  SELECT m.ts, m.channel_id, m.thread_ts, m.text, m.user_id, tm.ts as target_ts, tm.thread_ts as target_thread_ts
+  SELECT ${mAliasedFields}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
   FROM slack.message m  
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.ts = tm.thread_ts
   WHERE tm.thread_ts IS NOT NULL
@@ -45,7 +60,7 @@ thread_context AS (
 -- Calculate position relative to target (separate CTE)
 thread_context_with_positions AS (
   SELECT 
-    ts, channel_id, thread_ts, text, user_id, target_ts, target_thread_ts,
+    ${getMessageFields({ messageTableAlias: 't', includeFiles, coerceType: false })}, target_ts, target_thread_ts,
     CASE 
       WHEN ts = target_ts OR ts = target_thread_ts THEN 0
       WHEN ts < target_ts THEN 
@@ -64,14 +79,14 @@ thread_context_with_positions AS (
 
 -- Filter early to reduce downstream processing
 thread_positions_filtered AS (
-  SELECT ts, channel_id, thread_ts, text, user_id
+  SELECT ${fields}
   FROM thread_context_with_positions
   WHERE position BETWEEN -(${window}::int) AND ${window}
 ),
 
 -- Get channel messages around target channel messages (non-thread) 
 channel_context AS (
-  SELECT m.ts, m.channel_id, m.thread_ts, m.text, m.user_id, tm.ts as target_ts
+  SELECT ${mAliasedFields}, tm.ts as target_ts
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id
   WHERE (tm.thread_ts IS NULL OR tm.ts = tm.thread_ts)
@@ -82,7 +97,7 @@ channel_context AS (
 -- Calculate position and filter immediately
 channel_positions_filtered AS (
   SELECT 
-    ts, channel_id, thread_ts, text, user_id
+    ${fields}
   FROM (
     SELECT 
       c.*,
@@ -106,11 +121,11 @@ channel_positions_filtered AS (
 
 -- Combine with minimal duplication
 all_messages AS (
-  SELECT DISTINCT ts, channel_id, thread_ts, text, user_id FROM target_messages
+  SELECT DISTINCT ${fields} FROM target_messages
   UNION
-  SELECT DISTINCT ts, channel_id, thread_ts, text, user_id FROM thread_positions_filtered
+  SELECT DISTINCT ${fields} FROM thread_positions_filtered
   UNION
-  SELECT DISTINCT ts, channel_id, thread_ts, text, user_id FROM channel_positions_filtered
+  SELECT DISTINCT ${fields} FROM channel_positions_filtered
 ),
 
 -- Optimized reply count calculation - only for messages that need it
@@ -131,11 +146,7 @@ reply_counts AS (
 )
 
 SELECT 
-  am.ts::text, 
-  am.channel_id, 
-  am.text, 
-  am.user_id, 
-  am.thread_ts::text,
+  ${getMessageFields({ includeFiles, messageTableAlias: 'am' })},
   CASE 
     WHEN am.thread_ts IS NULL OR am.ts = am.thread_ts THEN rc.reply_count
     ELSE NULL
@@ -144,3 +155,4 @@ FROM all_messages am
 LEFT JOIN reply_counts rc ON am.ts = rc.ts
 ORDER BY am.ts DESC
 LIMIT ${limit}`;
+};
