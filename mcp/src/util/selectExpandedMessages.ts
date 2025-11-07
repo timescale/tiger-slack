@@ -6,7 +6,7 @@ export const selectExpandedMessages = (
   limit: string,
   includeFiles: boolean,
 ): string => {
-  const fieldsWithMAlias = getMessageFields({
+  const mAliasedFields = getMessageFields({
     messageTableAlias: 'm',
     includeFiles,
     allowTypeCoercion: false,
@@ -27,7 +27,7 @@ target_messages AS (
 -- Break the complex OR join into three separate, index-optimized joins
 -- Join 1: Messages in same thread as target (m.thread_ts = tm.thread_ts)
 thread_same AS (
-  SELECT ${fieldsWithMAlias}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
+  SELECT ${mAliasedFields}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.thread_ts = tm.thread_ts
   WHERE tm.thread_ts IS NOT NULL
@@ -35,14 +35,14 @@ thread_same AS (
 
 -- Join 2: Replies to target message (m.thread_ts = tm.ts)
 thread_replies AS (
-  SELECT ${fieldsWithMAlias}, tm.ts as target_ts, tm.thread_ts as target_thread_ts  
+  SELECT ${mAliasedFields}, tm.ts as target_ts, tm.thread_ts as target_thread_ts  
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.thread_ts = tm.ts
 ),
 
 -- Join 3: Target is reply to thread root (m.ts = tm.thread_ts)
 thread_roots AS (
-  SELECT ${fieldsWithMAlias}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
+  SELECT ${mAliasedFields}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
   FROM slack.message m  
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.ts = tm.thread_ts
   WHERE tm.thread_ts IS NOT NULL
@@ -86,7 +86,7 @@ thread_positions_filtered AS (
 
 -- Get channel messages around target channel messages (non-thread) 
 channel_context AS (
-  SELECT ${fieldsWithMAlias}, tm.ts as target_ts
+  SELECT ${mAliasedFields}, tm.ts as target_ts
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id
   WHERE (tm.thread_ts IS NULL OR tm.ts = tm.thread_ts)
