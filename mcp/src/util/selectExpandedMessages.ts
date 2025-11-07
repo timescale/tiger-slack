@@ -5,7 +5,19 @@ export const selectExpandedMessages = (
   window: string,
   limit: string,
   includeFiles: boolean,
-): string => /* sql */ `
+): string => {
+  const fieldsForMessagesWithMAlias = getMessageFields({
+    messageTableAlias: 'm',
+    includeFiles,
+    allowTypeCoercion: false,
+  });
+
+  const fieldsWithoutAlias = getMessageFields({
+    includeFiles,
+    allowTypeCoercion: false,
+  });
+
+  return /* sql */ `
 -- Start by selecting the target messages
 WITH
 target_messages AS (
@@ -15,7 +27,7 @@ target_messages AS (
 -- Break the complex OR join into three separate, index-optimized joins
 -- Join 1: Messages in same thread as target (m.thread_ts = tm.thread_ts)
 thread_same AS (
-  SELECT ${getMessageFields({ messageTableAlias: 'm', includeFiles, allowTypeCoercion: false })}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
+  SELECT ${fieldsForMessagesWithMAlias}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.thread_ts = tm.thread_ts
   WHERE tm.thread_ts IS NOT NULL
@@ -23,14 +35,14 @@ thread_same AS (
 
 -- Join 2: Replies to target message (m.thread_ts = tm.ts)
 thread_replies AS (
-  SELECT ${getMessageFields({ messageTableAlias: 'm', includeFiles, allowTypeCoercion: false })}, tm.ts as target_ts, tm.thread_ts as target_thread_ts  
+  SELECT ${fieldsForMessagesWithMAlias}, tm.ts as target_ts, tm.thread_ts as target_thread_ts  
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.thread_ts = tm.ts
 ),
 
 -- Join 3: Target is reply to thread root (m.ts = tm.thread_ts)
 thread_roots AS (
-  SELECT ${getMessageFields({ messageTableAlias: 'm', includeFiles, allowTypeCoercion: false })}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
+  SELECT ${fieldsForMessagesWithMAlias}, tm.ts as target_ts, tm.thread_ts as target_thread_ts
   FROM slack.message m  
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id AND m.ts = tm.thread_ts
   WHERE tm.thread_ts IS NOT NULL
@@ -67,14 +79,14 @@ thread_context_with_positions AS (
 
 -- Filter early to reduce downstream processing
 thread_positions_filtered AS (
-  SELECT ${getMessageFields({ includeFiles, allowTypeCoercion: false })}
+  SELECT ${fieldsWithoutAlias}
   FROM thread_context_with_positions
   WHERE position BETWEEN -(${window}::int) AND ${window}
 ),
 
 -- Get channel messages around target channel messages (non-thread) 
 channel_context AS (
-  SELECT ${getMessageFields({ messageTableAlias: 'm', includeFiles, allowTypeCoercion: false })}, tm.ts as target_ts
+  SELECT ${fieldsForMessagesWithMAlias}, tm.ts as target_ts
   FROM slack.message m
   INNER JOIN target_messages tm ON m.channel_id = tm.channel_id
   WHERE (tm.thread_ts IS NULL OR tm.ts = tm.thread_ts)
@@ -85,7 +97,7 @@ channel_context AS (
 -- Calculate position and filter immediately
 channel_positions_filtered AS (
   SELECT 
-    ${getMessageFields({ includeFiles, allowTypeCoercion: false })}
+    ${fieldsWithoutAlias}
   FROM (
     SELECT 
       c.*,
@@ -109,11 +121,11 @@ channel_positions_filtered AS (
 
 -- Combine with minimal duplication
 all_messages AS (
-  SELECT DISTINCT ${getMessageFields({ includeFiles, allowTypeCoercion: false })} FROM target_messages
+  SELECT DISTINCT ${fieldsWithoutAlias} FROM target_messages
   UNION
-  SELECT DISTINCT ${getMessageFields({ includeFiles, allowTypeCoercion: false })} FROM thread_positions_filtered
+  SELECT DISTINCT ${fieldsWithoutAlias} FROM thread_positions_filtered
   UNION
-  SELECT DISTINCT ${getMessageFields({ includeFiles, allowTypeCoercion: false })} FROM channel_positions_filtered
+  SELECT DISTINCT ${fieldsWithoutAlias} FROM channel_positions_filtered
 ),
 
 -- Optimized reply count calculation - only for messages that need it
@@ -143,3 +155,4 @@ FROM all_messages am
 LEFT JOIN reply_counts rc ON am.ts = rc.ts
 ORDER BY am.ts DESC
 LIMIT ${limit}`;
+};
