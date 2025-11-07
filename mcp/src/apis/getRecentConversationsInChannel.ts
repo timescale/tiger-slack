@@ -97,7 +97,7 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
       const result = await client.query<Message>(
         /* sql */ `
 SELECT
-  ${getMessageFields(includeFiles)}
+  ${getMessageFields({ includeFiles })}
 FROM slack.message
 WHERE channel_id = $1
   AND ts >= (NOW() - $2::INTERVAL)

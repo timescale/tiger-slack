@@ -103,13 +103,14 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-  SELECT ${getMessageFields(includeFiles)} FROM slack.message
+  SELECT ${getMessageFields({ includeFiles, messageTableAlias: 'm', enableTypeCoercion: false })} FROM slack.message m
   WHERE user_id = $1 AND ts >= (NOW() - $2::INTERVAL)
   ORDER BY ts DESC
   LIMIT $4
 `,
           '$3',
           '$4',
+          includeFiles,
         ),
         [targetUser.id, lookbackInterval || '1w', window || 5, limit || 1000],
       );

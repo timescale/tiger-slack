@@ -1,9 +1,23 @@
-export const getMessageFields = (includeFiles?: boolean): string =>
+export const getMessageFields = ({
+  messageTableAlias,
+  includeFiles,
+  enableTypeCoercion = true,
+}: {
+  enableTypeCoercion?: boolean;
+  messageTableAlias?: string;
+  includeFiles?: boolean;
+}): string =>
   [
     'ts::text',
     'channel_id',
     'text',
-    'm.user_id',
+    'user_id',
     'thread_ts::text',
     ...(includeFiles ? ['files::jsonb'] : []),
-  ].join(',');
+  ]
+    .map((x) => {
+      const column = enableTypeCoercion ? x : x.replace(/::.+$/, '');
+
+      return `${messageTableAlias ? `${messageTableAlias}.${column}` : column}`;
+    })
+    .join(',');

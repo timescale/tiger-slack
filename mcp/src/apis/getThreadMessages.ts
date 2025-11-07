@@ -63,7 +63,7 @@ export const getThreadMessagesFactory: ApiFactory<
   }> => {
     const result = await pgPool.query<Message>(
       /* sql */ `
-  SELECT ${getMessageFields(includeFiles)} FROM slack.message m
+  SELECT ${getMessageFields({ includeFiles, messageTableAlias: 'm' })} FROM slack.message m
   WHERE m.channel_id = $1 AND (m.thread_ts = $2 OR m.ts = $2)
   ORDER BY m.ts ASC`,
       [channel, convertTsToTimestamp(ts)],
