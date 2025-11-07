@@ -1,9 +1,9 @@
 export const getMessageFields = ({
+  allowTypeCoercion = true,
   messageTableAlias,
   includeFiles,
-  enableTypeCoercion = true,
 }: {
-  enableTypeCoercion?: boolean;
+  allowTypeCoercion?: boolean;
   messageTableAlias?: string;
   includeFiles?: boolean;
 }): string =>
@@ -16,8 +16,7 @@ export const getMessageFields = ({
     ...(includeFiles ? ['files::jsonb'] : []),
   ]
     .map((x) => {
-      const column = enableTypeCoercion ? x : x.replace(/::.+$/, '');
-
+      const column = allowTypeCoercion ? x : x.replace(/::.+$/, '');
       return `${messageTableAlias ? `${messageTableAlias}.${column}` : column}`;
     })
     .join(',');
