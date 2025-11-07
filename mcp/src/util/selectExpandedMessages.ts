@@ -109,11 +109,11 @@ channel_positions_filtered AS (
 
 -- Combine with minimal duplication
 all_messages AS (
-  SELECT DISTINCT ts, channel_id, thread_ts, text, user_id, files FROM target_messages
+  SELECT DISTINCT ${getMessageFields({ includeFiles, enableTypeCoercion: false })} FROM target_messages
   UNION
-  SELECT DISTINCT ts, channel_id, thread_ts, text, user_id, files FROM thread_positions_filtered
+  SELECT DISTINCT ${getMessageFields({ includeFiles, enableTypeCoercion: false })} FROM thread_positions_filtered
   UNION
-  SELECT DISTINCT ts, channel_id, thread_ts, text, user_id, files FROM channel_positions_filtered
+  SELECT DISTINCT ${getMessageFields({ includeFiles, enableTypeCoercion: false })} FROM channel_positions_filtered
 ),
 
 -- Optimized reply count calculation - only for messages that need it
