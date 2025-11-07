@@ -77,7 +77,7 @@ export const getMessageContextFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-SELECT ${getMessageFields({ includeFiles, allowTypeCoercion: false })} FROM slack.message
+SELECT ${getMessageFields({ includeFiles, coerceType: false })} FROM slack.message
 WHERE ts = $1 AND channel_id = $2
 LIMIT 1
 `,

@@ -103,7 +103,7 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-  SELECT ${getMessageFields({ includeFiles, allowTypeCoercion: false })} FROM slack.message
+  SELECT ${getMessageFields({ includeFiles, coerceType: false })} FROM slack.message
   WHERE user_id = $1 AND ts >= (NOW() - $2::INTERVAL)
   ORDER BY ts DESC
   LIMIT $4

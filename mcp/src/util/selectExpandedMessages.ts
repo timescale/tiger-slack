@@ -9,12 +9,12 @@ export const selectExpandedMessages = (
   const mAliasedFields = getMessageFields({
     messageTableAlias: 'm',
     includeFiles,
-    allowTypeCoercion: false,
+    coerceType: false,
   });
 
   const fields = getMessageFields({
     includeFiles,
-    allowTypeCoercion: false,
+    coerceType: false,
   });
 
   return /* sql */ `
@@ -60,7 +60,7 @@ thread_context AS (
 -- Calculate position relative to target (separate CTE)
 thread_context_with_positions AS (
   SELECT 
-    ${getMessageFields({ messageTableAlias: 't', includeFiles, allowTypeCoercion: false })}, target_ts, target_thread_ts,
+    ${getMessageFields({ messageTableAlias: 't', includeFiles, coerceType: false })}, target_ts, target_thread_ts,
     CASE 
       WHEN ts = target_ts OR ts = target_thread_ts THEN 0
       WHEN ts < target_ts THEN 
