@@ -48,7 +48,7 @@ services:
       - db
 
 volumes:
-  postgres_data:
+  db_data:
 
 networks:
   default:
