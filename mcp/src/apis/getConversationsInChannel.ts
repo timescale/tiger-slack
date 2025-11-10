@@ -11,6 +11,11 @@ import { findChannel } from '../util/findChannel.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { getMessageFields } from '../util/messageFields.js';
+import {
+  DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE,
+  getDate,
+  getStartAndEndTimes,
+} from '../util/date.js';
 
 const inputSchema = {
   channelName: z
@@ -28,13 +33,20 @@ const inputSchema = {
     .describe(
       'An optional parameter to determine whether or not permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
     ),
-  lookbackInterval: z
-    .string()
-    .min(0)
+  rangeStart: z.coerce
+    .date()
     .nullable()
     .describe(
-      'An optional lookback interval, to specify how far back to fetch messages before now. Defaults to 1 week. Format is a PostgreSQL interval, e.g. "7 days", "1 month", "3 hours".',
-    ),
+      'Optional start date for the message range. Defaults to rangeEnd - 1w.',
+    )
+    .default(getDate(DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE)),
+  rangeEnd: z.coerce
+    .date()
+    .nullable()
+    .describe(
+      'Optional end date for the message range. Defaults to the current time.',
+    )
+    .default(new Date()),
   limit: z.coerce
     .number()
     .min(1)
@@ -51,18 +63,18 @@ const outputSchema = {
     ),
 } as const;
 
-export const getRecentConversationsInChannelFactory: ApiFactory<
+export const getConversationsInChannelFactory: ApiFactory<
   ServerContext,
   typeof inputSchema,
   typeof outputSchema
 > = ({ pgPool }) => ({
-  name: 'get_recent_conversations_in_channel',
+  name: 'get_conversations_in_channel',
   method: 'get',
-  route: '/recent-conversations-in-channel',
+  route: '/conversations-in-channel',
   config: {
-    title: 'Get Recent Conversations in Channel',
+    title: 'Get Conversations in Channel',
     description:
-      'Fetches recent messages in a specific Slack channel, organized into conversations with threading context.',
+      'Fetches messages in a specific Slack channel, organized into conversations with threading context.',
     inputSchema,
     outputSchema,
   },
@@ -70,7 +82,8 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
     channelName,
     includeFiles,
     includePermalinks,
-    lookbackInterval,
+    rangeStart,
+    rangeEnd,
     limit,
   }): Promise<{
     channel: z.infer<typeof zChannel>;
@@ -91,6 +104,8 @@ export const getRecentConversationsInChannelFactory: ApiFactory<
       targetChannel = exact;
     }
 
+    const { startTs, endTs } = getStartAndEndTimes({ rangeEnd, rangeStart });
+
     const client = await pgPool.connect();
     try {
       // Get messages in the channel within the lookback period
@@ -100,10 +115,16 @@ SELECT
   ${getMessageFields({ includeFiles })}
 FROM slack.message
 WHERE channel_id = $1
-  AND ts >= (NOW() - $2::INTERVAL)
+  AND ts >= $2::TIMESTAMP
+  AND ts <= $3::TIMESTAMP
 ORDER BY ts DESC
-LIMIT $3`,
-        [targetChannel.id, lookbackInterval || '1w', limit || 1000],
+LIMIT $4`,
+        [
+          targetChannel.id,
+          startTs.toISOString(),
+          endTs.toISOString(),
+          limit || 1000,
+        ],
       );
 
       const { involvedUsers, channels } = messagesToTree(

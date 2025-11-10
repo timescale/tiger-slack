@@ -7,6 +7,9 @@ import { messagesToTree } from '../util/messagesToTree.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
+import { getDate, getStartAndEndTimes } from '../util/date.js';
+
+const DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE = 7;
 
 const inputSchema = {
   username: z
@@ -24,13 +27,20 @@ const inputSchema = {
     .describe(
       'An optional parameter to determine whether or not permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
     ),
-  lookbackInterval: z
-    .string()
-    .min(0)
+  rangeStart: z.coerce
+    .date()
     .nullable()
     .describe(
-      'An optional lookback interval, to specify how far back to fetch messages before now. Defaults to 1 week. Format is a PostgreSQL interval, e.g. "7 days", "1 month", "3 hours".',
-    ),
+      'Optional start date for the message range. Defaults to rangeEnd - 1w.',
+    )
+    .default(getDate(DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE)),
+  rangeEnd: z.coerce
+    .date()
+    .nullable()
+    .describe(
+      'Optional end date for the message range. Defaults to the current time.',
+    )
+    .default(new Date()),
   limit: z.coerce
     .number()
     .min(1)
@@ -56,18 +66,18 @@ const outputSchema = {
     ),
 } as const;
 
-export const getRecentConversationsWithUserFactory: ApiFactory<
+export const getConversationsWithUserFactory: ApiFactory<
   ServerContext,
   typeof inputSchema,
   typeof outputSchema
 > = ({ pgPool }) => ({
-  name: 'get_recent_conversations_with_user',
+  name: 'get_conversations_with_user',
   method: 'get',
-  route: '/recent-conversations-with-user',
+  route: '/conversations-with-user',
   config: {
-    title: 'Get Recent Conversations with User',
+    title: 'Get Conversations with User',
     description:
-      'Fetches recent messages authored by a specific user in Slack, including the context of related messages by other users, organized into channels and conversations.',
+      'Fetches messages authored by a specific user in Slack, including the context of related messages by other users, organized into channels and conversations.',
     inputSchema,
     outputSchema,
   },
@@ -75,8 +85,9 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
     username,
     includeFiles,
     includePermalinks,
-    lookbackInterval,
     limit,
+    rangeStart,
+    rangeEnd,
     window,
   }): Promise<{
     channels: Record<string, z.infer<typeof zChannel>>;
@@ -97,6 +108,7 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
 
       targetUser = exact;
     }
+    const { startTs, endTs } = getStartAndEndTimes({ rangeEnd, rangeStart });
 
     const client = await pgPool.connect();
     try {
@@ -104,17 +116,25 @@ export const getRecentConversationsWithUserFactory: ApiFactory<
         selectExpandedMessages(
           /* sql */ `
   SELECT ${getMessageFields({ includeFiles, coerceType: false })} FROM slack.message
-  WHERE user_id = $1 AND ts >= (NOW() - $2::INTERVAL)
+  WHERE user_id = $1 
+    AND ts >= $2::TIMESTAMP
+    AND ts <= $3::TIMESTAMP
   ORDER BY ts DESC
-  LIMIT $4
+  LIMIT $5
 `,
-          '$3',
           '$4',
+          '$5',
           includeFiles,
         ),
-        [targetUser.id, lookbackInterval || '1w', window || 5, limit || 1000],
+        [
+          targetUser.id,
+          startTs.toISOString(),
+          endTs.toISOString(),
+          window || 5,
+          limit || 1000,
+        ],
       );
-
+      console.log('command', { command: result.command });
       const { channels, involvedUsers } = messagesToTree(
         result.rows,
         includePermalinks || false,
