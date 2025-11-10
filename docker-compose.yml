@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:${PGPORT}"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - db_data:/home/postgres/pgdata/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PGUSER} -d ${PGDATABASE}"]
       interval: 5s
@@ -48,7 +48,7 @@ services:
       - db
 
 volumes:
-  postgres_data:
+  db_data:
 
 networks:
   default:
