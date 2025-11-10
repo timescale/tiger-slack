@@ -115,8 +115,8 @@ SELECT
   ${getMessageFields({ includeFiles })}
 FROM slack.message
 WHERE channel_id = $1
-  AND ts >= $2::TIMESTAMP
-  AND ts <= $3::TIMESTAMP
+  AND ts >= $2::TIMESTAMPTZ
+  AND ts <= $3::TIMESTAMPTZ
 ORDER BY ts DESC
 LIMIT $4`,
         [
