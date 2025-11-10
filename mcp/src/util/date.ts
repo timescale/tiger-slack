@@ -22,7 +22,5 @@ export const getStartAndEndTimes = ({
       'The range start date needs to be after the range start date',
     );
   }
-
-  console.log('dates', { endTs, startTs });
   return { endTs, startTs };
 };
