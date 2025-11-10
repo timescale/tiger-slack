@@ -117,8 +117,8 @@ export const getConversationsWithUserFactory: ApiFactory<
           /* sql */ `
   SELECT ${getMessageFields({ includeFiles, coerceType: false })} FROM slack.message
   WHERE user_id = $1 
-    AND ts >= $2::TIMESTAMP
-    AND ts <= $3::TIMESTAMP
+    AND ts >= $2::TIMESTAMPTZ
+    AND ts <= $3::TIMESTAMPTZ
   ORDER BY ts DESC
   LIMIT $5
 `,
