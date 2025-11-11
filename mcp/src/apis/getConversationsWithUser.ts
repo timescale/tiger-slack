@@ -134,7 +134,7 @@ export const getConversationsWithUserFactory: ApiFactory<
           limit || 1000,
         ],
       );
-      console.log('command', { command: result.command });
+
       const { channels, involvedUsers } = messagesToTree(
         result.rows,
         includePermalinks || false,
