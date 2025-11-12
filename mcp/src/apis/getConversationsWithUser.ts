@@ -24,13 +24,13 @@ const inputSchema = {
     .describe(
       'An optional parameter to determine whether or not permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
     ),
-  rangeStart: z.coerce
+  timestampStart: z.coerce
     .date()
     .nullable()
     .describe(
       'Optional start date for the message range. Defaults to rangeEnd - 1w.',
     ),
-  rangeEnd: z.coerce
+  timestampEnd: z.coerce
     .date()
     .nullable()
     .describe(
@@ -81,8 +81,8 @@ export const getConversationsWithUserFactory: ApiFactory<
     includeFiles,
     includePermalinks,
     limit,
-    rangeStart,
-    rangeEnd,
+    timestampStart,
+    timestampEnd,
     window,
   }): Promise<{
     channels: Record<string, z.infer<typeof zChannel>>;
@@ -122,8 +122,8 @@ export const getConversationsWithUserFactory: ApiFactory<
         ),
         [
           targetUser.id,
-          rangeStart?.toISOString(),
-          rangeEnd?.toISOString(),
+          timestampStart?.toISOString(),
+          timestampEnd?.toISOString(),
           window || 5,
           limit || 1000,
         ],
