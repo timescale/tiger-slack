@@ -11,11 +11,6 @@ import { findChannel } from '../util/findChannel.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { getMessageFields } from '../util/messageFields.js';
-import {
-  DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE,
-  getDate,
-  getStartAndEndTimes,
-} from '../util/date.js';
 
 const inputSchema = {
   channelName: z
@@ -38,15 +33,13 @@ const inputSchema = {
     .nullable()
     .describe(
       'Optional start date for the message range. Defaults to rangeEnd - 1w.',
-    )
-    .default(getDate(DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE)),
+    ),
   rangeEnd: z.coerce
     .date()
     .nullable()
     .describe(
       'Optional end date for the message range. Defaults to the current time.',
-    )
-    .default(new Date()),
+    ),
   limit: z.coerce
     .number()
     .min(1)
@@ -104,8 +97,6 @@ export const getConversationsInChannelFactory: ApiFactory<
       targetChannel = exact;
     }
 
-    const { startTs, endTs } = getStartAndEndTimes({ rangeEnd, rangeStart });
-
     const client = await pgPool.connect();
     try {
       // Get messages in the channel within the lookback period
@@ -115,14 +106,14 @@ SELECT
   ${getMessageFields({ includeFiles })}
 FROM slack.message
 WHERE channel_id = $1
-  AND ts >= $2::TIMESTAMPTZ
-  AND ts <= $3::TIMESTAMPTZ
+  AND (($2::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $2::TIMESTAMPTZ)
+  AND ($3::TIMESTAMPTZ IS NULL OR ts <= $3::TIMESTAMPTZ)
 ORDER BY ts DESC
 LIMIT $4`,
         [
           targetChannel.id,
-          startTs.toISOString(),
-          endTs.toISOString(),
+          rangeStart?.toISOString(),
+          rangeEnd?.toISOString(),
           limit || 1000,
         ],
       );

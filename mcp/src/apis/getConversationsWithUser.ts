@@ -7,9 +7,6 @@ import { messagesToTree } from '../util/messagesToTree.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
-import { getDate, getStartAndEndTimes } from '../util/date.js';
-
-const DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE = 7;
 
 const inputSchema = {
   username: z
@@ -32,15 +29,13 @@ const inputSchema = {
     .nullable()
     .describe(
       'Optional start date for the message range. Defaults to rangeEnd - 1w.',
-    )
-    .default(getDate(DEFAULT_NUMBER_OF_DAYS_TO_INCLUDE)),
+    ),
   rangeEnd: z.coerce
     .date()
     .nullable()
     .describe(
       'Optional end date for the message range. Defaults to the current time.',
-    )
-    .default(new Date()),
+    ),
   limit: z.coerce
     .number()
     .min(1)
@@ -108,7 +103,6 @@ export const getConversationsWithUserFactory: ApiFactory<
 
       targetUser = exact;
     }
-    const { startTs, endTs } = getStartAndEndTimes({ rangeEnd, rangeStart });
 
     const client = await pgPool.connect();
     try {
@@ -117,8 +111,8 @@ export const getConversationsWithUserFactory: ApiFactory<
           /* sql */ `
   SELECT ${getMessageFields({ includeFiles, coerceType: false })} FROM slack.message
   WHERE user_id = $1 
-    AND ts >= $2::TIMESTAMPTZ
-    AND ts <= $3::TIMESTAMPTZ
+    AND (($2::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $2::TIMESTAMPTZ)
+    AND ($3::TIMESTAMPTZ IS NULL OR ts <= $3::TIMESTAMPTZ)
   ORDER BY ts DESC
   LIMIT $5
 `,
@@ -128,8 +122,8 @@ export const getConversationsWithUserFactory: ApiFactory<
         ),
         [
           targetUser.id,
-          startTs.toISOString(),
-          endTs.toISOString(),
+          rangeStart?.toISOString(),
+          rangeEnd?.toISOString(),
           window || 5,
           limit || 1000,
         ],
