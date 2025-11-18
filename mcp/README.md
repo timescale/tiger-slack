@@ -36,7 +36,6 @@ The server connects directly to your Tiger Slack database (populated by the [ing
 
 Each API is designed to provide rich, structured data that AI assistants can easily understand and work with, making Slack data accessible for analysis, search, and insight generation.
 
-
 ## Development
 
 Cloning and running the server locally.
@@ -119,18 +118,21 @@ The Tiger Slack MCP Server includes comprehensive observability through [Logfire
 The MCP server automatically instruments:
 
 #### MCP Protocol Operations
+
 - **Tool calls** with input parameters and response data
 - **Session management** including connection lifecycle
 - **Transport layer** (stdio/HTTP) with connection details
 - **Error handling** with full stack traces and context
 
 #### Database Operations
+
 - **PostgreSQL queries** with query text, parameters, and timing
 - **Connection pooling** operations and resource usage
 - **Query performance** metrics and slow query detection
 - **Database errors** with detailed diagnostic information
 
 #### System Performance
+
 - **HTTP requests** (when using HTTP transport)
 - **Memory usage** and garbage collection metrics
 - **CPU utilization** during query processing

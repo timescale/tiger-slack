@@ -1,4 +1,4 @@
-import { ApiFactory } from '@tigerdata/mcp-boilerplate';
+import { ApiFactory, InferSchema } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import { ServerContext, zChannel } from '../types.js';
 
@@ -34,8 +34,13 @@ export const getChannelsFactory: ApiFactory<
     inputSchema,
     outputSchema,
   },
-  fn: async ({ keyword }): Promise<{ results: z.infer<typeof zChannelWithoutMessages>[] }> => {
-    const res = await pgPool.query(
+  fn: async ({ keyword }): Promise<InferSchema<typeof outputSchema>> => {
+    const res = await pgPool.query<{
+      id: string;
+      channel_name: string;
+      topic?: string;
+      purpose?: string;
+    }>(
       /* sql */ `
 SELECT id, channel_name, topic, purpose
   FROM slack.channel
@@ -50,7 +55,7 @@ SELECT id, channel_name, topic, purpose
     );
 
     return {
-      results: res.rows.map((row: any) => ({
+      results: res.rows.map((row) => ({
         id: row.id,
         name: row.channel_name,
         topic: row.topic,

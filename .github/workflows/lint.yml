@@ -1,0 +1,30 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: mcp/package-lock.json
+      - name: Install dependencies
+        working-directory: mcp
+        run: npm ci
+      - name: Run ESLint
+        working-directory: mcp
+        run: npm run lint
+      - name: Run Prettier
+        working-directory: mcp
+        run: npm run prettier:check
+      - name: Run build
+        working-directory: mcp
+        run: npm run build --if-present
