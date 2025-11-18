@@ -56,11 +56,11 @@ export type User = z.infer<typeof zUser>;
 export const zFile = z
   .object({
     id: z.string(),
-    name: z.string(),
-    size: z.number(),
-    title: z.string(),
-    mimetype: z.string(),
-    url_private_download: z.string(),
+    name: z.string().nullish(),
+    size: z.number().nullish(),
+    title: z.string().nullish(),
+    mimetype: z.string().nullish(),
+    url_private_download: z.string().nullish(),
   })
   .describe('A file associated with a Slack message');
 
