@@ -55,7 +55,7 @@ export type User = z.infer<typeof zUser>;
 
 export const zFile = z
   .object({
-    id: z.string().nullish(),
+    id: z.string(),
     name: z.string().nullish(),
     size: z.number().nullish(),
     title: z.string().nullish(),
