@@ -13,6 +13,28 @@
                 "PGHOST": "localhost"
             },
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Debug Tiger-Slack MCP Server",
+            "type": "node",
+            "request": "launch",
+            "preLaunchTask": "Tiger-Slack MCP - Build Only",
+            "program": "${workspaceFolder}/mcp/dist/index.js",
+            "args": ["http"],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "cwd": "${workspaceFolder}/mcp",
+            "env": {
+                "NODE_ENV": "development"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/mcp/dist/**/*.js"],
+            "skipFiles": ["<node_internals>/**"],
+            "presentation": {
+                "group": "mcp",
+                "order": 1
+            }
         }
     ]
 }
