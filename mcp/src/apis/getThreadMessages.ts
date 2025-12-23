@@ -65,7 +65,7 @@ export const getThreadMessagesFactory: ApiFactory<
       /* sql */ `
   SELECT ${getMessageFields({ includeFiles })} FROM slack.message
   WHERE channel_id = $1 AND (thread_ts = $2 OR ts = $2)
-  ORDER BY ts ASC`,
+  ORDER BY ts DESC`, // messagesToTree expects messages in descending order
       [channel, convertTsToTimestamp(ts)],
     );
 
