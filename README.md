@@ -185,7 +185,7 @@ Use [Claude Code](https://www.claude.com/product/claude-code) and/or the [MCP In
 You can use the MCP Inspector to interact with the MCP server via a web UI. Run the following from the [mcp](/mcp) directory:
 
 ```bash
-npm run inspector
+./bun run inspector
 ```
 
 ## Suggested Roll-out Strategy
