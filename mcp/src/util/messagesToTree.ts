@@ -1,5 +1,6 @@
 import { Channel, Message } from '../types.js';
 import { generatePermalink } from './addMessageLinks.js';
+import { convertTimestampToTs } from './formatTs.js';
 
 /**
  * Converts a flat list of messages into a tree of channels and threads
@@ -18,7 +19,7 @@ export const messagesToTree = (
 
   // loop in reverse order to build tree in chronological order
   for (let i = messages.length - 1; i >= 0; i--) {
-    const row = messages[i];
+    const row = normalizeMessageTs(messages[i]);
     if (row.user_id) {
       involvedUsers.add(row.user_id);
     }
@@ -81,3 +82,10 @@ export const messagesToTree = (
 
   return { channels, involvedUsers };
 };
+
+const normalizeMessageTs = (msg: Message): Message => ({
+  ...msg,
+  ts: convertTimestampToTs(msg.ts) ?? msg.ts,
+  thread_ts:
+    (msg.thread_ts && convertTimestampToTs(msg.thread_ts)) || msg.thread_ts,
+});

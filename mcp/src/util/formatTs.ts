@@ -33,6 +33,11 @@ export const convertTimestampToTs = (
     /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.?(\d{0,6})\+00$/,
   );
   if (!match) {
+    const alreadyTsMatch = timestamp.match(/^(\d+)\.(\d+)?$/);
+    if (alreadyTsMatch) {
+      const [, seconds, fraction = '0'] = alreadyTsMatch;
+      return `${seconds}${asMicroseconds ? '' : '.'}${fraction.padEnd(6, '0')}`;
+    }
     console.warn(`Could not parse timestamp ${timestamp}`);
     return null;
   }
