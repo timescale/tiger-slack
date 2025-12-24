@@ -1,6 +1,6 @@
-import { ApiFactory } from '@tigerdata/mcp-boilerplate';
+import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
-import { ServerContext, User, zUser } from '../types.js';
+import { type ServerContext, type User, zUser } from '../types.js';
 
 const inputSchema = {
   includeBots: z

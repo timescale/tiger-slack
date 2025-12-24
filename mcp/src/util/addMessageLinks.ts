@@ -1,5 +1,5 @@
 import { log } from '@tigerdata/mcp-boilerplate';
-import { Message } from '../types.js';
+import type { Message } from '../types.js';
 import { convertTimestampToTs } from './formatTs.js';
 
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
@@ -16,7 +16,7 @@ export const initWorkspaceBaseUrl = async (): Promise<void> => {
       },
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as { ok: boolean; url?: string };
 
     if (!data.ok) {
       throw new Error('auth.test request failed.');

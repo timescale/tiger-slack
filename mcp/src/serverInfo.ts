@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 
-import { ServerContext } from './types.js';
+import type { ServerContext } from './types.js';
 
 export const serverInfo = {
   name: 'tiger-slack',

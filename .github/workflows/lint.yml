@@ -14,12 +14,9 @@ jobs:
       - name: Install dependencies
         working-directory: mcp
         run: ./bun ci
-      - name: Run ESLint
+      - name: Run Biome Linter
         working-directory: mcp
         run: ./bun run lint
-      - name: Run Prettier
-        working-directory: mcp
-        run: ./bun run prettier:check
       - name: Run Type Check
         working-directory: mcp
         run: ./bun run typecheck

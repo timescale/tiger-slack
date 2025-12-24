@@ -1,12 +1,12 @@
-import { ApiFactory } from '@tigerdata/mcp-boilerplate';
+import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
-import { type Message, ServerContext, zChannel, zUser } from '../types.js';
-import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
-import { messagesToTree } from '../util/messagesToTree.js';
-import { getUsersMap } from '../util/getUsersMap.js';
+import { type Message, type ServerContext, zChannel, zUser } from '../types.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';
+import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
+import { messagesToTree } from '../util/messagesToTree.js';
+import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
 
 const inputSchema = {
   ts: z

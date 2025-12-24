@@ -1,5 +1,5 @@
-import { PoolClient } from 'pg';
-import { Channel } from '../types.js';
+import type { PoolClient } from 'pg';
+import type { Channel } from '../types.js';
 
 /**
  * Adds channel information to the provided channels map.
@@ -19,10 +19,10 @@ SELECT id, channel_name, topic, purpose
     [Object.keys(channels)],
   );
   for (const row of channelsResult.rows) {
-    if (channels[row.id]) {
-      channels[row.id].name = row.channel_name;
-      channels[row.id].topic = row.topic;
-      channels[row.id].purpose = row.purpose;
-    }
+    const channel = channels[row.id];
+    if (!channel) continue;
+    channel.name = row.channel_name;
+    channel.topic = row.topic;
+    channel.purpose = row.purpose;
   }
 };

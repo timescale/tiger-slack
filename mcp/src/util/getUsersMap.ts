@@ -1,5 +1,5 @@
-import { Pool, PoolClient } from 'pg';
-import { User } from '../types.js';
+import type { Pool, PoolClient } from 'pg';
+import type { User } from '../types.js';
 
 export const getUsersMap = async (
   client: PoolClient | Pool,

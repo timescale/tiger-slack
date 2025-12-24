@@ -1,0 +1,9 @@
+{
+  "biome.lsp.bin": "./mcp/node_modules/@biomejs/biome/bin/biome",
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  }
+}

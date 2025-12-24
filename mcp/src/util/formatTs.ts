@@ -10,7 +10,7 @@ export const convertTsToTimestamp = (ts: string): string => {
       .replace('T', ' ')
       .replace('Z', `${ts.slice(-3)}+00`);
   } else if (/^\d+\.\d+$/.test(ts)) {
-    const [seconds, fraction] = ts.split('.');
+    const [seconds = '0', fraction = '0'] = ts.split('.');
     return new Date(
       parseInt(seconds, 10) * 1000 + parseInt(fraction, 10) / 1000,
     )
@@ -41,8 +41,8 @@ export const convertTimestampToTs = (
     console.warn(`Could not parse timestamp ${timestamp}`);
     return null;
   }
-  const [, dateTime, fraction] = match;
-  const date = new Date(dateTime.replace(' ', 'T') + 'Z');
+  const [, dateTime = '', fraction = '0'] = match;
+  const date = new Date(`${dateTime.replace(' ', 'T')}Z`);
   const seconds = Math.floor(date.getTime() / 1000);
   return `${seconds}${asMicroseconds ? '' : '.'}${fraction.padEnd(6, '0')}`;
 };

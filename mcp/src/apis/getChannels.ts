@@ -1,6 +1,6 @@
-import { ApiFactory, InferSchema } from '@tigerdata/mcp-boilerplate';
+import type { ApiFactory, InferSchema } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
-import { ServerContext, zChannel } from '../types.js';
+import { type ServerContext, zChannel } from '../types.js';
 
 const inputSchema = {
   keyword: z
