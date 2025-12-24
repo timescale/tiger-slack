@@ -11,20 +11,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: mcp/package-lock.json
       - name: Install dependencies
         working-directory: mcp
-        run: npm ci
+        run: ./bun ci
       - name: Run ESLint
         working-directory: mcp
-        run: npm run lint
+        run: ./bun run lint
       - name: Run Prettier
         working-directory: mcp
-        run: npm run prettier:check
-      - name: Run build
+        run: ./bun run prettier:check
+      - name: Run Type Check
         working-directory: mcp
-        run: npm run build --if-present
+        run: ./bun run typecheck
