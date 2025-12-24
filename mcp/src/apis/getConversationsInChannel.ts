@@ -1,16 +1,16 @@
-import { ApiFactory } from '@tigerdata/mcp-boilerplate';
+import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import {
-  Channel,
+  type Channel,
   type Message,
-  ServerContext,
+  type ServerContext,
   zChannel,
   zUser,
 } from '../types.js';
 import { findChannel } from '../util/findChannel.js';
 import { getUsersMap } from '../util/getUsersMap.js';
-import { messagesToTree } from '../util/messagesToTree.js';
 import { getMessageFields } from '../util/messageFields.js';
+import { messagesToTree } from '../util/messagesToTree.js';
 
 const inputSchema = {
   channelName: z
@@ -95,6 +95,10 @@ export const getConversationsInChannelFactory: ApiFactory<
         );
       }
       targetChannel = exact;
+    }
+
+    if (!targetChannel?.id) {
+      throw new Error(`No channel id found matching "${channelName}"`);
     }
 
     const client = await pgPool.connect();

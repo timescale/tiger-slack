@@ -1,5 +1,5 @@
-import { Pool } from 'pg';
-import { User } from '../types.js';
+import type { Pool } from 'pg';
+import type { User } from '../types.js';
 
 export const findUser = async (
   pgPool: Pool,

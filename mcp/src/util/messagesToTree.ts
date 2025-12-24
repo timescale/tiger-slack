@@ -1,4 +1,4 @@
-import { Channel, Message } from '../types.js';
+import type { Channel, Message } from '../types.js';
 import { generatePermalink } from './addMessageLinks.js';
 import { convertTimestampToTs } from './formatTs.js';
 
@@ -19,7 +19,9 @@ export const messagesToTree = (
 
   // loop in reverse order to build tree in chronological order
   for (let i = messages.length - 1; i >= 0; i--) {
-    const row = normalizeMessageTs(messages[i]);
+    const msg = messages[i];
+    if (!msg) continue;
+    const row = normalizeMessageTs(msg);
     if (row.user_id) {
       involvedUsers.add(row.user_id);
     }
@@ -39,6 +41,7 @@ export const messagesToTree = (
       }));
     }
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: simplifies type check
     const channel = (channels[row.channel_id] ??= {
       id: row.channel_id,
       name: '',

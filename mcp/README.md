@@ -46,7 +46,7 @@ git clone git@github.com:timescale/tiger-slack.git
 
 ### Building
 
-Run `npm i` to install dependencies and build the project. Use `npm run watch` to rebuild on changes.
+Run `./bun i` to install dependencies and build the project. Use `./bun run watch http` to rebuild on changes.
 
 Create a `.env` file based on the `.env.sample` file.
 
@@ -59,7 +59,7 @@ cp .env.sample .env
 The MCP Inspector is very handy.
 
 ```bash
-npm run inspector
+./bun run inspector
 ```
 
 | Field          | Value           |
@@ -100,13 +100,13 @@ This project uses ESLint for code linting with TypeScript support.
 To run the linter:
 
 ```bash
-npm run lint
+./bun run lint
 ```
 
 To automatically fix linting issues where possible:
 
 ```bash
-npm run lint:fix
+./bun run lint:fix
 ```
 
 ## Observability with Logfire

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import dotenv from 'dotenv';
-import { cliEntrypoint } from '@tigerdata/mcp-boilerplate';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cliEntrypoint } from '@tigerdata/mcp-boilerplate';
+import dotenv from 'dotenv';
 import { initWorkspaceBaseUrl } from './util/addMessageLinks.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

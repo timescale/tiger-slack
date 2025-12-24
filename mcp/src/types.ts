@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import type { Pool } from 'pg';
+import { z } from 'zod';
 
 export interface ServerContext extends Record<string, unknown> {
   pgPool: Pool;

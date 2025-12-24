@@ -14,32 +14,25 @@
   ],
   "scripts": {
     "build": "tsc && shx chmod +x dist/*.js",
-    "prepare": "npm run build",
-    "watch": "tsx watch src/index.ts http",
-    "watch:stdio": "tsc --watch",
-    "start": "node dist/index.js http",
-    "start:stdio": "node dist/index.js stdio",
-    "lint": "eslint",
-    "lint:fix": "eslint --fix",
-    "prettier:check": "prettier --check .",
-    "prettier:write": "prettier --write .",
+    "prepublishOnly": "./bun run build",
+    "watch": "./bun --watch src/index.ts",
+    "start": "./bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "./bun x @biomejs/biome check",
     "inspector": "npx @modelcontextprotocol/inspector"
   },
   "dependencies": {
-    "@tigerdata/mcp-boilerplate": "^0.7.0",
+    "@tigerdata/mcp-boilerplate": "^0.9.3",
     "dotenv": "^17.2.3",
     "pg": "^8.16.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@types/node": "^22.19.1",
-    "@types/pg": "^8.15.4",
-    "eslint": "^9.39.1",
-    "prettier": "^3.6.2",
+    "@biomejs/biome": "^2.3.10",
+    "@types/node": "^22.19.3",
+    "@types/pg": "^8.16.0",
     "shx": "^0.4.0",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.47.0"
+    "typescript": "^5.9.3"
   }
 }

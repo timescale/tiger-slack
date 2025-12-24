@@ -52,11 +52,9 @@ just build-image             # Build Docker image
 ### MCP Server (`mcp/`)
 ```bash
 cd mcp/
-npm run build               # Build TypeScript to JavaScript
-npm run watch               # Watch for changes and rebuild automatically
-npm run start               # Start MCP server using stdio transport
-npm run prepare             # Build project for publishing
-npm run inspector           # Test with MCP Inspector
+./bun run watch http        # Watch for changes and rebuild automatically
+./bun run lint --write      # Run Biome linter and auto-fix
+./bun run typecheck         # Run TypeScript type checks
 ```
 
 ## Configuration

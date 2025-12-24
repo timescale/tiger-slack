@@ -1,3 +1,4 @@
 dist
+download/
 node_modules
 .env
