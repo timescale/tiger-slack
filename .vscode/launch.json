@@ -10,7 +10,6 @@
             "cwd": "${workspaceFolder}/ingest",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}",
-                "PGHOST": "localhost"
             },
             "envFile": "${workspaceFolder}/.env"
         },
