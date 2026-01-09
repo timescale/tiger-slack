@@ -1,0 +1,100 @@
+--006-message-with-embedding.sql
+
+-----------------------------------------------------------------------
+-- this updates slack.insert_message to take an embedding
+create or replace function slack.insert_message(_event jsonb, _embedding vector(1536)) returns void
+as $func$
+    insert into slack.message
+    ( ts
+    , channel_id
+    , team
+    , text
+    , type
+    , user_id
+    , blocks
+    , event_ts
+    , thread_ts
+    , channel_type
+    , client_msg_id
+    , parent_user_id
+    , bot_id
+    , attachments
+    , files
+    , app_id
+    , subtype
+    , trigger_id
+    , workflow_id
+    , display_as_bot
+    , upload
+    , x_files
+    , icons
+    , language
+    , edited
+    , embedding
+    )
+    select
+      slack.to_timestamptz(_event->>'ts')
+    , _event->>'channel'
+    , _event->>'team'
+    , _event->>'text'
+    , _event->>'type'
+    , _event->>'user'
+    , _event->'blocks'
+    , slack.to_timestamptz(_event->>'event_ts')
+    , slack.to_timestamptz(_event->>'thread_ts')
+    , _event->>'channel_type'
+    , (_event->>'client_msg_id')::uuid
+    , _event->>'parent_user_id'
+    , _event->>'bot_id'
+    , _event->'attachments'
+    , _event->'files'
+    , _event->>'app_id'
+    , _event->>'subtype'
+    , _event->>'trigger_id'
+    , _event->>'workflow_id'
+    , (_event->>'display_as_bot')::boolean
+    , (_event->>'upload')::boolean
+    , _event->'x_files'
+    , _event->'icons'
+    , _event->'language'
+    , _event->'edited'
+    , _embedding
+    where not exists
+    (
+        select 1
+        from slack.message_discard d
+        where jsonb_path_match(_event, d.match, silent=>true)
+    )
+    on conflict (channel_id, ts) do nothing
+$func$ language sql volatile security invoker
+;
+
+-----------------------------------------------------------------------
+-- this updates slack.update_message to take an embedding
+create or replace function slack.update_message(_event jsonb, _embedding vector(1536)) returns void
+as $func$
+    update slack.message m set
+      team = jsonb_extract_path_text(_event, 'message', 'team')
+    , text = jsonb_extract_path_text(_event, 'message', 'text')
+    , type = jsonb_extract_path_text(_event, 'message', 'type')
+    , user_id = jsonb_extract_path_text(_event, 'message', 'user')
+    , blocks = jsonb_extract_path(_event, 'message', 'blocks')
+    , attachments = jsonb_extract_path(_event, 'message', 'attachments')
+    , files = jsonb_extract_path(_event, 'message', 'files')
+    , app_id = jsonb_extract_path_text(_event, 'message', 'app_id')
+    , subtype = jsonb_extract_path_text(_event, 'message', 'subtype')
+    , trigger_id = jsonb_extract_path_text(_event, 'message', 'trigger_id')
+    , workflow_id = jsonb_extract_path_text(_event, 'message', 'workflow_id')
+    , display_as_bot = jsonb_extract_path_text(_event, 'message', 'display_as_bot')::boolean
+    , upload = jsonb_extract_path_text(_event, 'message', 'upload')::boolean
+    , x_files = jsonb_extract_path(_event, 'message', 'x_files')
+    , icons = jsonb_extract_path(_event, 'message', 'icons')
+    , language = jsonb_extract_path(_event, 'message', 'language')
+    , edited = jsonb_extract_path(_event, 'message', 'edited')
+    , embedding = _embedding
+    where (m.ts, m.channel_id) =
+    ( slack.to_timestamptz(jsonb_extract_path_text(_event, 'message', 'ts'))
+    , _event->>'channel'
+    );
+$func$ language sql volatile security invoker
+;
