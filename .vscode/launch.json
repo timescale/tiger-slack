@@ -14,6 +14,45 @@
             "envFile": "${workspaceFolder}/.env"
         },
         {
+            "name": "Create Embedding Batch Jobs",
+            "type": "python",
+            "request": "launch",
+            "module": "tiger_slack.embed_messages",
+            "args": ["--create-embedding-batch-jobs"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+            },
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Check Batch Status",
+            "type": "python",
+            "request": "launch",
+            "module": "tiger_slack.embed_messages",
+            "args": ["--check-batch-status"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+            },
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Retrieve Completed Batches",
+            "type": "python",
+            "request": "launch",
+            "module": "tiger_slack.embed_messages",
+            "args": ["--retrieve-completed-batches"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+            },
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
             "name": "Debug Tiger-Slack MCP Server",
             "type": "node",
             "request": "launch",
