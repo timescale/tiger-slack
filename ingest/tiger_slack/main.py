@@ -7,6 +7,7 @@ from typing import Any
 import aiocron
 import logfire
 from dotenv import find_dotenv, load_dotenv
+from pgvector.psycopg import register_vector_async
 from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 from slack_bolt.adapter.socket_mode.websockets import AsyncSocketModeHandler
@@ -42,6 +43,7 @@ def exception_handler(_, context):
 
 
 async def configure_database_connection(con: AsyncConnection) -> None:
+    await register_vector_async(con)
     await con.set_autocommit(True)
 
 

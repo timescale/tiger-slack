@@ -14,6 +14,7 @@ dependencies = [
     "aiohttp>=3.12.15",
     "click>=8.2.1",
     "logfire[psycopg,system-metrics]>=4.10.0",
+    "pgvector>=0.4.2",
     "psycopg[binary,pool]>=3.2.10",
     "pydantic-ai>=1.39.1",
     "python-dateutil>=2.9.0.post0",
