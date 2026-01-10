@@ -118,6 +118,6 @@ async def get_message_embedding(message: dict[str, Any]) -> Sequence[float] | No
         result = await embedder.embed_documents(txt)
         return result.embeddings[0]
     except Exception:
-        logger.exception("Could not embed message", text=txt)
+        logger.exception("Could not embed message", extra={"text": txt})
 
     
