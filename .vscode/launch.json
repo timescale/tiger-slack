@@ -1,39 +1,61 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Debug Tiger-Slack Ingest",
-            "type": "python",
-            "request": "launch",
-            "module": "tiger_slack.main",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/ingest",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}",
-            },
-            "envFile": "${workspaceFolder}/.env"
-        },
-        {
-            "name": "Debug Tiger-Slack MCP Server",
-            "type": "node",
-            "request": "launch",
-            "preLaunchTask": "Tiger-Slack MCP - Build Only",
-            "program": "${workspaceFolder}/mcp/dist/index.js",
-            "args": ["http"],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "cwd": "${workspaceFolder}/mcp",
-            "env": {
-                "NODE_ENV": "development"
-            },
-            "envFile": "${workspaceFolder}/.env",
-            "sourceMaps": true,
-            "outFiles": ["${workspaceFolder}/mcp/dist/**/*.js"],
-            "skipFiles": ["<node_internals>/**"],
-            "presentation": {
-                "group": "mcp",
-                "order": 1
-            }
-        }
-    ]
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug Tiger-Slack Ingest",
+			"type": "python",
+			"request": "launch",
+			"module": "tiger_slack.main",
+			"console": "integratedTerminal",
+			"cwd": "${workspaceFolder}/ingest",
+			"env": {
+				"PYTHONPATH": "${workspaceFolder}"
+			},
+			"envFile": "${workspaceFolder}/.env"
+		},
+		{
+			"name": "Debug Tiger-Slack Import",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "tiger_slack.import",
+			"console": "integratedTerminal",
+			"cwd": "${workspaceFolder}/ingest",
+			"args": ["${input:importDirectory}"],
+			"env": {
+				"PYTHONPATH": "${workspaceFolder}/ingest"
+			},
+			"envFile": "${workspaceFolder}/.env",
+			"justMyCode": false
+		},
+		{
+			"name": "Debug Tiger-Slack MCP Server",
+			"type": "node",
+			"request": "launch",
+			"preLaunchTask": "Tiger-Slack MCP - Build Only",
+			"program": "${workspaceFolder}/mcp/dist/index.js",
+			"args": ["http"],
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"cwd": "${workspaceFolder}/mcp",
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"envFile": "${workspaceFolder}/.env",
+			"sourceMaps": true,
+			"outFiles": ["${workspaceFolder}/mcp/dist/**/*.js"],
+			"skipFiles": ["<node_internals>/**"],
+			"presentation": {
+				"group": "mcp",
+				"order": 1
+			}
+		}
+	],
+	"inputs": [
+		{
+			"id": "importDirectory",
+			"type": "promptString",
+			"description": "Path to Slack export directory",
+			"default": "${workspaceFolder}/data"
+		}
+	]
 }
