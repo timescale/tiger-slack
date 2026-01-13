@@ -15,9 +15,9 @@ from psycopg_pool import AsyncConnectionPool
 
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
-from tiger_slack.utils import parse_since_flag, remove_null_bytes
+from tiger_slack.utils import parse_since_flag
 
-load_dotenv(dotenv_path=find_dotenv(usecwd=True))
+load_dotenv(dotenv_path=find_dotenv())
 setup_logging()
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ async def channel_files(
     all_files = []
     for channel_dir, channel_id in await channel_dirs(pool, directory):
         for file in channel_dir.glob("*.json"):
-            date_match = re.match(r'^(\d{4}-\d{2}-\d{2})\.json$', file.name)
+            date_match = re.match(r"^(\d{4}-\d{2}-\d{2})\.json$", file.name)
             if date_match:
                 file_date_str = date_match.group(1)
                 try:
@@ -228,8 +228,7 @@ async def process_file_worker(
     file_queue: asyncio.Queue[tuple[str, Path] | None],
     worker_id: int,
 ) -> None:
-    buffer = ""
-    item_count = 0
+    messages = []
     files: list[tuple[str, str]] = []
 
     while True:
@@ -241,45 +240,36 @@ async def process_file_worker(
         files.append((channel_id, str(file.relative_to(file.parent.parent))))
 
         try:
-            async with aiofiles.open(file, mode="r") as f:
-                content = await f.read()
+            async with aiofiles.open(file) as f:
+                file_content = await f.read()
 
-            num_elements = len(re.findall(r"^    {$", content, re.MULTILINE))
-            content = re.sub(
-                r"^    {$",
-                f'    {{\n        "channel_id": "{channel_id}",',
-                content,
-                flags=re.MULTILINE,
-            )
-
-            if len(buffer) == 0:
-                buffer = content
-            else:
-                buffer = buffer.rstrip("]") + "," + content.lstrip("[")
-            item_count += num_elements
-
-            if item_count >= 500:
+            new_messages = json.loads(file_content)
+            for message in new_messages:
+                message["channel_id"] = channel_id
+           
+            messages += new_messages
+            
+            if len(messages) >= 500:
                 with logfire.span(
                     "loading_messages_batch",
                     worker_id=worker_id,
                     files=files,
-                    num_messages=item_count,
+                    num_messages=len(messages),
                 ):
-                    await insert_messages(pool, buffer)
-                buffer = ""
-                item_count = 0
+                    await insert_messages(pool, messages)
                 files = []
+                messages = []
         finally:
             file_queue.task_done()
 
-    if len(buffer) > 0:
+    if len(messages) > 0:
         with logfire.span(
             "loading_messages_final_batch",
             worker_id=worker_id,
             files=files,
-            num_messages=item_count,
+            num_messages=len(messages),
         ):
-            await insert_messages(pool, buffer)
+            await insert_messages(pool, messages)
 
 
 @logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
@@ -364,8 +354,6 @@ async def run_import(directory: Path, num_workers: int, since: date | None = Non
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory, num_workers, since)
-        # Compress old messages
-        await compress_old_messages(pool)
 
 
 @click.command()
