@@ -203,7 +203,7 @@ on conflict (ts, channel_id) do nothing
 """
 
 
-async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
+async def insert_messages(pool: AsyncConnectionPool, messages: list[dict[str, Any]]) -> None:
     with logfire.suppress_instrumentation():
         async with (
             pool.connection() as con,
@@ -213,7 +213,7 @@ async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
                 async with con.transaction() as _:
                     with logfire.suppress_instrumentation():
                         await cur.execute(
-                            MESSAGE_SQL, dict(json=remove_null_bytes(content, True))
+                            MESSAGE_SQL, dict(json=Jsonb(messages))
                         )
             except psycopg.Error as e:
                 logger.exception(
