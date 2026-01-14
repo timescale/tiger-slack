@@ -28,8 +28,18 @@
             },
             "envFile": "${workspaceFolder}/.env",
             "sourceMaps": true,
-            "outFiles": ["${workspaceFolder}/mcp/dist/**/*.js"],
-            "skipFiles": ["<node_internals>/**"],
+            "outFiles": [
+                "${workspaceFolder}/mcp/dist/**/*.js",
+                "!**/node_modules/**"
+            ],
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/mcp/**",
+                "!**/node_modules/**"
+            ],
+            "skipFiles": [
+                "<node_internals>/**",
+                "**/node_modules/**"
+            ],
             "presentation": {
                 "group": "mcp",
                 "order": 1
