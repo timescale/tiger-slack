@@ -118,30 +118,6 @@ export const searchFactory: ApiFactory<
 
     const rankAlias = 'rank';
 
-    const query = `WITH semantic_search AS (
-        SELECT 
-          ${getMessageFields({ includeFiles, coerceType: false, includeRanking: { type: 'semantic', embeddingVariable: '$1', rankAlias } })} FROM slack.message
-        ${commonFilter}
-        ORDER BY ${rankAlias}
-        LIMIT $6
-      ),
-      keyword_search AS (
-        SELECT
-          ${getMessageFields({ includeFiles, coerceType: false, includeRanking: { type: 'keyword', searchKeywordVariable: keyword, rankAlias } })} FROM slack.message
-        ${commonFilter}
-          ORDER BY ${rankAlias}
-          LIMIT $7
-      )
-      SELECT
-        ${coalesce(getMessageFields({ includeFiles, flattenToString: false }), 's', 'k').join(',')}
-        , ($8 * COALESCE(1.0 / (60 + s.rank), 0.0) +
-            (1 - $8) * COALESCE(1.0 / (60 + k.rank), 0.0)) AS combined_score
-      FROM semantic_search s
-      FULL OUTER JOIN keyword_search k ON s.ts = k.ts AND s.channel_id = k.channel_id
-      ORDER BY combined_score DESC
-      LIMIT $9
-    `;
-
     const result = await pgPool.query<Message>(
       `WITH semantic_search AS (
         SELECT 
