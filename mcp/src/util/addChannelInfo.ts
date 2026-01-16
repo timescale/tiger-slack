@@ -1,4 +1,4 @@
-import type { PoolClient } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type { Channel } from '../types.js';
 
 /**
@@ -8,7 +8,7 @@ import type { Channel } from '../types.js';
  * @param channels The map of channels to update with additional information
  */
 export const addChannelInfo = async (
-  client: PoolClient,
+  client: PoolClient | Pool,
   channels: Record<string, Channel>,
 ): Promise<void> => {
   const channelsResult = await client.query(

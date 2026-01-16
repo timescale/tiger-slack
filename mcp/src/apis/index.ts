@@ -4,6 +4,7 @@ import { getConversationsWithUserFactory } from './getConversationsWithUser.js';
 import { getMessageContextFactory } from './getMessageContext.js';
 import { getThreadMessagesFactory } from './getThreadMessages.js';
 import { getUsersFactory } from './getUsers.js';
+import { searchFactory } from './search.js';
 
 export const apiFactories = [
   getChannelsFactory,
@@ -12,4 +13,5 @@ export const apiFactories = [
   getConversationsWithUserFactory,
   getThreadMessagesFactory,
   getUsersFactory,
+  searchFactory,
 ] as const;
