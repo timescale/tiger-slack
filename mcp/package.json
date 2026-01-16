@@ -19,6 +19,8 @@
     "start": "./bun run src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "./bun x @biomejs/biome check",
+    "format": "./bun x @biomejs/biome format --write src/",
+    "format:check": "./bun x @biomejs/biome format src/",
     "inspector": "npx @modelcontextprotocol/inspector"
   },
   "dependencies": {

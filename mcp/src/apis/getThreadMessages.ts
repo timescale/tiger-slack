@@ -1,26 +1,24 @@
 import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
-import { type Message, type ServerContext, zMessage, zUser } from '../types.js';
+import {
+  type Message,
+  type ServerContext,
+  zIncludeFilters,
+  zMessage,
+  zUser,
+} from '../types.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 
 const inputSchema = {
+  ...zIncludeFilters.shape,
   channel: z
     .string()
     .min(1)
     .describe('The ID of the channel to fetch messages from.'),
-  includeFiles: z
-    .boolean()
-    .describe(
-      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
-    ),
-  includePermalinks: z
-    .boolean()
-    .describe(
-      'Specifies if permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
-    ),
+
   ts: z
     .string()
     .min(1)

@@ -1,6 +1,12 @@
 import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
-import { type Message, type ServerContext, zChannel, zUser } from '../types.js';
+import {
+  type Message,
+  type ServerContext,
+  zChannel,
+  zConversationsResults,
+  zUser,
+} from '../types.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';
 import { getUsersMap } from '../util/getUsersMap.js';
@@ -36,16 +42,7 @@ const inputSchema = {
     ),
 } as const;
 
-const outputSchema = {
-  channels: z
-    .record(z.string(), zChannel)
-    .describe('A mapping of channel IDs to channel info and content.'),
-  users: z
-    .record(z.string(), zUser)
-    .describe(
-      'A mapping of user IDs to user details for all users involved in the conversations.',
-    ),
-} as const;
+const outputSchema = { ...zConversationsResults.shape } as const;
 
 export const getMessageContextFactory: ApiFactory<
   ServerContext,
