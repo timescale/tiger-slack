@@ -15,6 +15,10 @@
     "rootDir": "./src",
     "declaration": true,
 
+    // Enable source maps for debugging
+    "sourceMap": true,
+    "inlineSources": true,
+
     // Best practices
     "strict": true,
     "skipLibCheck": true,
