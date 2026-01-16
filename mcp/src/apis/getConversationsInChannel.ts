@@ -56,24 +56,7 @@ export const getConversationsInChannelFactory: ApiFactory<
     channel: z.infer<typeof zChannel>;
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
-    const channels = await findChannel(pgPool, channelName);
-    if (channels.length === 0) {
-      throw new Error(`No channel found matching "${channelName}"`);
-    }
-    let [targetChannel] = channels;
-    if (channels.length > 1) {
-      const exact = channels.find((c) => c.name === channelName);
-      if (!exact) {
-        throw new Error(
-          `Multiple channels found matching "${channelName}": ${channels.map((c) => c.name).join(', ')}`,
-        );
-      }
-      targetChannel = exact;
-    }
-
-    if (!targetChannel?.id) {
-      throw new Error(`No channel id found matching "${channelName}"`);
-    }
+    const targetChannel = await findChannel(pgPool, channelName);
 
     const client = await pgPool.connect();
     try {

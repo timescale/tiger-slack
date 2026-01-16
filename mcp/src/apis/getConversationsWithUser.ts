@@ -52,25 +52,7 @@ export const getConversationsWithUserFactory: ApiFactory<
     channels: Record<string, z.infer<typeof zChannel>>;
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
-    const users = await findUser(pgPool, username);
-    if (users.length === 0) {
-      throw new Error(`No user found matching "${username}"`);
-    }
-    let [targetUser] = users;
-    if (users.length > 1) {
-      const exact = users.find((c) => c.user_name === username);
-      if (!exact) {
-        throw new Error(
-          `Multiple users found matching "${username}": ${users.map((u) => u.user_name).join(', ')}`,
-        );
-      }
-
-      targetUser = exact;
-    }
-
-    if (!targetUser?.id) {
-      throw new Error(`No user id found matching "${username}"`);
-    }
+    const user = await findUser(pgPool, username);
 
     const client = await pgPool.connect();
     try {
@@ -89,7 +71,7 @@ export const getConversationsWithUserFactory: ApiFactory<
           includeFiles,
         ),
         [
-          targetUser.id,
+          user.id,
           timestampStart?.toISOString(),
           timestampEnd?.toISOString(),
           window || 5,
