@@ -1,7 +1,9 @@
+import type OpenAI from 'openai';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 
 export interface ServerContext extends Record<string, unknown> {
+  openAIClient: OpenAI;
   pgPool: Pool;
 }
 
