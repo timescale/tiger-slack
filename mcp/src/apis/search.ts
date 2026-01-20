@@ -1,17 +1,17 @@
 import type { ApiFactory, InferSchema } from '@tigerdata/mcp-boilerplate';
+import { z } from 'zod';
 import {
   type Message,
   type ServerContext,
   zCommonSearchFilters,
   zConversationsResults,
 } from '../types.js';
+import { addChannelInfo } from '../util/addChannelInfo.js';
+import { findChannel } from '../util/findChannel.js';
+import { findUser } from '../util/findUser.js';
+import { getUsersMap } from '../util/getUsersMap.js';
 import { coalesce, getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
-import { addChannelInfo } from '../util/addChannelInfo.js';
-import { getUsersMap } from '../util/getUsersMap.js';
-import { findUser } from '../util/findUser.js';
-import { findChannel } from '../util/findChannel.js';
-import { z } from 'zod';
 
 const inputSchema = {
   ...zCommonSearchFilters.shape,
@@ -33,15 +33,15 @@ const inputSchema = {
     .describe(
       'Search query for hybrid search on Slack messages. Will return the messages that match the criterion.',
     ),
-  semanticWeight: z
-    .number()
-    .multipleOf(0.1)
-    .min(0)
-    .max(1)
-    .nullable()
-    .describe(
-      'Controls the balance between semantic and keyword search. 0 = keyword only, 0.5 = equal mix, 1 = semantic only. Default is 0.7 (favor semantic search).',
-    ),
+  // semanticWeight: z
+  //   .number()
+  //   .multipleOf(0.1)
+  //   .min(0)
+  //   .max(1)
+  //   .nullable()
+  //   .describe(
+  //     'Controls the balance between semantic and keyword search. 0 = keyword only, 0.5 = equal mix, 1 = semantic only. Default is 0.7 (favor semantic search).',
+  //   ),
 } as const;
 
 const outputSchema = { ...zConversationsResults.shape } as const;
@@ -71,11 +71,12 @@ export const searchFactory: ApiFactory<
     limit: passedLimit,
     timestampStart,
     timestampEnd,
-    semanticWeight: passedSemanticWeight,
+    // semanticWeight: passedSemanticWeight,
     users: senderUsersToFilterOn,
   }): Promise<InferSchema<typeof outputSchema>> => {
     // since pg_textsearch is not yet stable for slack.messages
     // we are going to force this to be a full semantic search for now
+    const passedSemanticWeight = 1;
 
     const semanticWeight = passedSemanticWeight ?? 1; // passedSemanticWeight ?? 0.7;
     const useSemanticSearch = semanticWeight > 0;
