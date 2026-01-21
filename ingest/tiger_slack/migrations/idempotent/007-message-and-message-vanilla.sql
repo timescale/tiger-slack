@@ -1,7 +1,7 @@
---006-message-with-embedding.sql
+--007-message-and-message-vanilla.sql
 
 -----------------------------------------------------------------------
--- this updates slack.insert_message to take an embedding
+-- persist to slack.message and slack.message_vanilla
 create or replace function slack.insert_message(_event jsonb, _embedding vector(1536)) returns void
 as $func$
     insert into slack.message
@@ -133,7 +133,7 @@ $func$ language sql volatile security invoker
 ;
 
 -----------------------------------------------------------------------
--- this updates slack.update_message to take an embedding
+-- this updates slack.update_message update to slack.message and slack.message_vanilla
 create or replace function slack.update_message(_event jsonb, _embedding vector(1536)) returns void
 as $func$
     update slack.message m set
