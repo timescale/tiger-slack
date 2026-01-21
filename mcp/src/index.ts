@@ -12,6 +12,6 @@ initWorkspaceBaseUrl().finally(() =>
   cliEntrypoint(
     join(__dirname, 'stdio.js'),
     join(__dirname, 'httpServer.js'),
-    ""
+    '',
   ).catch(console.error),
 );
