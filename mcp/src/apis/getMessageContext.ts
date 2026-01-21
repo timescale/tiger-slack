@@ -2,7 +2,6 @@ import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import {
   type Message,
-  type MessageInThread,
   type ServerContext,
   type zChannel,
   zConversationsResults,
