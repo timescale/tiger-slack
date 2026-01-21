@@ -109,6 +109,7 @@ async def migrate_batch(
 
     async with conn.cursor() as cur:
         await cur.execute(query, (offset, batch_size))
+        await conn.commit()
         return cur.rowcount
 
 
