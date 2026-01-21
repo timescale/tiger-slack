@@ -25,7 +25,7 @@ export const getSearchMethod = (search: SearchParams) =>
     ? `text <@> to_bm25query('${search.searchKeywordVariable}', 'slack.message_text_bm25_idx')`
     : `embedding <=> ${search.embeddingVariable}::vector(${search.dimensions || 1536})`;
 
-// Overload signatures to support returning an array or a comma-joined string
+// provide overloading signatures so we can return an array or comma joined string
 export function getMessageFields(
   params: MessageFieldsParams & { flattenToString?: true },
 ): string;
@@ -34,7 +34,6 @@ export function getMessageFields(
 ): string[];
 export function getMessageFields(params: MessageFieldsParams): string;
 
-// Implementation
 export function getMessageFields({
   coerceType = true,
   flattenToString = true,
