@@ -12,5 +12,6 @@ initWorkspaceBaseUrl().finally(() =>
   cliEntrypoint(
     join(__dirname, 'stdio.js'),
     join(__dirname, 'httpServer.js'),
+    join(__dirname, 'instrumentation.js'), // Provide explicit path for Node.js compatibility
   ).catch(console.error),
 );

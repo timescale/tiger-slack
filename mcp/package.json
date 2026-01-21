@@ -19,11 +19,14 @@
     "start": "./bun run src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "./bun x @biomejs/biome check",
+    "format": "./bun x @biomejs/biome format --write src/",
+    "format:check": "./bun x @biomejs/biome format src/",
     "inspector": "npx @modelcontextprotocol/inspector"
   },
   "dependencies": {
     "@tigerdata/mcp-boilerplate": "^0.9.3",
     "dotenv": "^17.2.3",
+    "openai": "^6.16.0",
     "pg": "^8.16.3",
     "zod": "^3.25.76"
   },

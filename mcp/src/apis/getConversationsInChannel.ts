@@ -5,7 +5,10 @@ import {
   type Message,
   type ServerContext,
   zChannel,
+  zChannelSearchFilters,
+  zCommonSearchFilters,
   zUser,
+  zWindowFilter,
 } from '../types.js';
 import { findChannel } from '../util/findChannel.js';
 import { getUsersMap } from '../util/getUsersMap.js';
@@ -13,38 +16,9 @@ import { getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 
 const inputSchema = {
-  channelName: z
-    .string()
-    .describe(
-      'The Slack channel to fetch messages for. Can be the channel id or name. Returns an error if multiple channels match.',
-    ),
-  includeFiles: z
-    .boolean()
-    .describe(
-      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
-    ),
-  includePermalinks: z
-    .boolean()
-    .describe(
-      'An optional parameter to determine whether or not permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
-    ),
-  timestampStart: z.coerce
-    .date()
-    .nullable()
-    .describe(
-      'Optional start date for the message range. Defaults to rangeEnd - 1w.',
-    ),
-  timestampEnd: z.coerce
-    .date()
-    .nullable()
-    .describe(
-      'Optional end date for the message range. Defaults to the current time.',
-    ),
-  limit: z.coerce
-    .number()
-    .min(1)
-    .nullable()
-    .describe('The maximum number of messages to return. Defaults to 1000.'),
+  ...zCommonSearchFilters.shape,
+  ...zChannelSearchFilters.shape,
+  ...zWindowFilter.shape,
 } as const;
 
 const outputSchema = {
@@ -82,24 +56,7 @@ export const getConversationsInChannelFactory: ApiFactory<
     channel: z.infer<typeof zChannel>;
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
-    const channels = await findChannel(pgPool, channelName);
-    if (channels.length === 0) {
-      throw new Error(`No channel found matching "${channelName}"`);
-    }
-    let [targetChannel] = channels;
-    if (channels.length > 1) {
-      const exact = channels.find((c) => c.name === channelName);
-      if (!exact) {
-        throw new Error(
-          `Multiple channels found matching "${channelName}": ${channels.map((c) => c.name).join(', ')}`,
-        );
-      }
-      targetChannel = exact;
-    }
-
-    if (!targetChannel?.id) {
-      throw new Error(`No channel id found matching "${channelName}"`);
-    }
+    const targetChannel = await findChannel(pgPool, channelName);
 
     const client = await pgPool.connect();
     try {
