@@ -1,4 +1,4 @@
-import type { Channel, Message } from '../types.js';
+import type { Channel, MessageInThread } from '../types.js';
 import { generatePermalink } from './addMessageLinks.js';
 import { convertTimestampToTs } from './formatTs.js';
 
@@ -7,14 +7,14 @@ import { convertTimestampToTs } from './formatTs.js';
  * @param messages An array of messages sorted in reverse chronological order
  */
 export const messagesToTree = (
-  messages: Message[],
+  messages: MessageInThread[],
   includePermalinks?: boolean,
 ): {
   channels: Record<string, Channel>;
   involvedUsers: Set<string>;
 } => {
   const channels: Record<string, Channel> = {};
-  const threadRoots: Record<string, Message> = {};
+  const threadRoots: Record<string, MessageInThread> = {};
   const involvedUsers = new Set<string>();
 
   // loop in reverse order to build tree in chronological order
@@ -86,7 +86,7 @@ export const messagesToTree = (
   return { channels, involvedUsers };
 };
 
-const normalizeMessageTs = (msg: Message): Message => ({
+const normalizeMessageTs = (msg: MessageInThread): MessageInThread => ({
   ...msg,
   ts: convertTimestampToTs(msg.ts) ?? msg.ts,
   thread_ts:

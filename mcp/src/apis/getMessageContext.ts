@@ -2,10 +2,11 @@ import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import {
   type Message,
+  type MessageInThread,
   type ServerContext,
-  zChannel,
+  type zChannel,
   zConversationsResults,
-  zUser,
+  type zUser,
 } from '../types.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';

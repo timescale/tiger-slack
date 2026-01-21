@@ -1,20 +1,29 @@
+type SemanticSearchParams = {
+  type: 'semantic';
+  dimensions?: number;
+  embeddingVariable: string; // expecting variable index placeholders e.g. $1
+  rankAlias: string;
+};
+
+type KeywordSearchParams = {
+  type: 'keyword';
+  searchKeywordVariable: string; // expecting variable index placeholders e.g. $1
+  rankAlias: string;
+};
+
+type SearchParams = SemanticSearchParams | KeywordSearchParams;
+
 type MessageFieldsParams = {
   coerceType?: boolean;
   messageTableAlias?: string;
   includeFiles?: boolean;
-  includeRanking?:
-    | {
-        type: 'semantic';
-        dimensions?: number;
-        embeddingVariable: string; // expecting variable index placeholders e.g. $1
-        rankAlias: string;
-      }
-    | {
-        type: 'keyword';
-        searchKeywordVariable: string; // expecting variable index placeholders e.g. $1
-        rankAlias: string;
-      };
+  rankingMethod?: string;
 };
+
+export const getSearchMethod = (search: SearchParams) =>
+  search.type === 'keyword'
+    ? `text <@> to_bm25query('${search.searchKeywordVariable}', 'slack.message_text_bm25_idx')`
+    : `embedding <=> ${search.embeddingVariable}::vector(${search.dimensions || 1536})`;
 
 // Overload signatures to support returning an array or a comma-joined string
 export function getMessageFields(
@@ -29,7 +38,7 @@ export function getMessageFields(params: MessageFieldsParams): string;
 export function getMessageFields({
   coerceType = true,
   flattenToString = true,
-  includeRanking: search,
+  rankingMethod,
   messageTableAlias,
   includeFiles,
 }: MessageFieldsParams & { flattenToString?: boolean }): string | string[] {
@@ -40,10 +49,8 @@ export function getMessageFields({
     'user_id',
     `thread_ts${coerceType ? '::text' : ''}`,
     ...(includeFiles ? [`files${coerceType ? '::jsonb' : ''}`] : []),
-    ...(search
-      ? [
-          `ROW_NUMBER() OVER (ORDER BY ${search.type === 'keyword' ? `text <@> to_bm25query('${search.searchKeywordVariable}', 'slack.message_text_bm25_idx')` : `embedding <=> ${search.embeddingVariable}::vector(${search.dimensions || 1536})`}) AS rank`,
-        ]
+    ...(rankingMethod
+      ? [`ROW_NUMBER() OVER (ORDER BY ${rankingMethod}) AS rank`]
       : []),
   ].map((x) => `${messageTableAlias ? `${messageTableAlias}.${x}` : x}`);
 

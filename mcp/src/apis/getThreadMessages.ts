@@ -2,9 +2,10 @@ import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import {
   type Message,
+  type MessageInThread,
   type ServerContext,
   zIncludeFilters,
-  zMessage,
+  zMessageInThread,
   zUser,
 } from '../types.js';
 import { convertTsToTimestamp } from '../util/formatTs.js';
@@ -28,7 +29,7 @@ const inputSchema = {
 } as const;
 
 const outputSchema = {
-  messages: z.array(zMessage),
+  messages: z.array(zMessageInThread),
   users: z
     .record(z.string(), zUser)
     .describe(
@@ -56,7 +57,7 @@ export const getThreadMessagesFactory: ApiFactory<
     includePermalinks,
     ts,
   }): Promise<{
-    messages: z.infer<typeof zMessage>[];
+    messages: MessageInThread[];
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
     const result = await pgPool.query<Message>(

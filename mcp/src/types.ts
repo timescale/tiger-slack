@@ -66,7 +66,7 @@ export const zFile = z
   })
   .describe('A file associated with a Slack message');
 
-const commonMessageFields = {
+export const zMessage = z.object({
   ts: z.string().describe('The timestamp of the message'),
   channel_id: z
     .string()
@@ -81,15 +81,14 @@ const commonMessageFields = {
     .describe('The Slack user ID of the message author (e.g. U012AB345CD)'),
   thread_ts: z.string().nullable().describe('The thread timestamp, if a reply'),
   permalink: z.string().optional().describe('The hyperlink to the message'),
-};
+});
 
-export const zMessage = z
+export type Message = z.infer<typeof zMessage>;
+
+export const zMessageInThread = z
   .object({
-    ...commonMessageFields,
-    replies: z
-      .array(z.object(commonMessageFields))
-      .optional()
-      .describe('Replies to this message'),
+    ...zMessage.shape,
+    replies: z.array(zMessage).optional().describe('Replies to this message'),
     reply_count: z
       .number()
       .optional()
@@ -100,7 +99,7 @@ export const zMessage = z
   })
   .describe('A Slack message');
 
-export type Message = z.infer<typeof zMessage>;
+export type MessageInThread = z.infer<typeof zMessageInThread>;
 
 export const zChannel = z.object({
   id: z
@@ -109,7 +108,7 @@ export const zChannel = z.object({
       'The Slack channel ID the message was posted in (e.g. C123ABC456)',
     ),
   name: z.string().describe('The name of the channel'),
-  messages: z.array(zMessage).describe('Messages in this channel'),
+  messages: z.array(zMessageInThread).describe('Messages in this channel'),
   topic: z.string().optional().nullable().describe('The channel topic'),
   purpose: z.string().optional().nullable().describe('The channel purpose'),
 });

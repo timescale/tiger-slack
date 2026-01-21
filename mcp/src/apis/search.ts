@@ -4,17 +4,25 @@ import {
   type Message,
   type ServerContext,
   zCommonSearchFilters,
-  zConversationsResults,
+  zMessage,
 } from '../types.js';
-import { addChannelInfo } from '../util/addChannelInfo.js';
+import { generatePermalink } from '../util/addMessageLinks.js';
 import { findChannel } from '../util/findChannel.js';
 import { findUser } from '../util/findUser.js';
-import { getUsersMap } from '../util/getUsersMap.js';
-import { coalesce, getMessageFields } from '../util/messageFields.js';
-import { messagesToTree } from '../util/messagesToTree.js';
+import {
+  coalesce,
+  getMessageFields,
+  getSearchMethod,
+} from '../util/messageFields.js';
 
 const inputSchema = {
-  ...zCommonSearchFilters.shape,
+  ...zCommonSearchFilters.extend({
+    limit: z.coerce
+      .number()
+      .min(1)
+      .nullable()
+      .describe('The maximum number of messages to return. Defaults to 20.'),
+  }).shape,
   channels: z
     .string()
     .array()
@@ -44,7 +52,9 @@ const inputSchema = {
   //   ),
 } as const;
 
-const outputSchema = { ...zConversationsResults.shape } as const;
+const outputSchema = {
+  messages: z.array(zMessage).describe('Messages matching search.'),
+} as const;
 
 export const searchFactory: ApiFactory<
   ServerContext,
@@ -82,7 +92,7 @@ export const searchFactory: ApiFactory<
     const useSemanticSearch = semanticWeight > 0;
     const useKeywordSearch = semanticWeight < 1;
 
-    const limit = passedLimit || 1000;
+    const limit = passedLimit || 20;
 
     const embedding = useSemanticSearch
       ? (
@@ -111,7 +121,8 @@ export const searchFactory: ApiFactory<
     }
 
     const commonFilter = `
-     WHERE (($2::TEXT[] IS NULL) OR (user_id = ANY($2)))
+     WHERE text != ''
+          AND (($2::TEXT[] IS NULL) OR (user_id = ANY($2)))
           AND (($3::TEXT[] IS NULL) OR (channel_id = ANY($3)))
           AND (($4::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $4::TIMESTAMPTZ)
           AND ($5::TIMESTAMPTZ IS NULL OR ts <= $5::TIMESTAMPTZ)
@@ -119,19 +130,35 @@ export const searchFactory: ApiFactory<
 
     const rankAlias = 'rank';
 
-    const result = await pgPool.query<Message>(
+    const semanticMethod = getSearchMethod({
+      type: 'semantic',
+      embeddingVariable: '$1',
+      rankAlias,
+    });
+
+    const keywordMethod = 'ts'; // getSearchMethod({
+    // 	type: "keyword",
+    // 	searchKeywordVariable: keyword,
+    // 	rankAlias,
+    // });
+
+    const results = await pgPool.query<Message>(
       `WITH semantic_search AS (
         SELECT 
-          ${getMessageFields({ includeFiles, coerceType: false, includeRanking: { type: 'semantic', embeddingVariable: '$1', rankAlias } })} FROM slack.message
+          ${getMessageFields({ includeFiles, coerceType: false, rankingMethod: semanticMethod })} FROM slack.message
         ${commonFilter}
-        ORDER BY ${rankAlias}
+        ORDER BY ${semanticMethod}
         LIMIT $6
       ),
       keyword_search AS (
         SELECT
-          ${getMessageFields({ includeFiles, coerceType: false, includeRanking: { type: 'keyword', searchKeywordVariable: keyword, rankAlias } })} FROM slack.message
+          ${getMessageFields({
+            includeFiles,
+            coerceType: false,
+            //rankingMethod: keywordMethod,
+          })}, 1 as rank FROM slack.message
         ${commonFilter}
-          ORDER BY ${rankAlias}
+          ORDER BY ${keywordMethod}
           LIMIT $7
       )
       SELECT
@@ -156,16 +183,14 @@ export const searchFactory: ApiFactory<
       ],
     );
 
-    const { channels, involvedUsers } = messagesToTree(
-      result.rows,
-      includePermalinks || false,
-    );
-    await addChannelInfo(pgPool, channels);
-    const users = await getUsersMap(pgPool, involvedUsers);
+    if (includePermalinks) {
+      results.rows.forEach((message) => {
+        message.permalink = generatePermalink(message);
+      });
+    }
 
     return {
-      channels,
-      users,
+      messages: results.rows,
     };
   },
 });

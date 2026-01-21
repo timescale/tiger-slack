@@ -1,5 +1,5 @@
 import { log } from '@tigerdata/mcp-boilerplate';
-import type { Message } from '../types.js';
+import type { Message, MessageInThread } from '../types.js';
 import { convertTimestampToTs } from './formatTs.js';
 
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
@@ -33,7 +33,9 @@ export const initWorkspaceBaseUrl = async (): Promise<void> => {
   }
 };
 
-export const generatePermalink = (message: Message): string | undefined => {
+export const generatePermalink = (
+  message: Message | MessageInThread,
+): string | undefined => {
   const messageTs = convertTimestampToTs(message.ts, true);
   const threadTs = message.thread_ts
     ? convertTimestampToTs(message.thread_ts)
