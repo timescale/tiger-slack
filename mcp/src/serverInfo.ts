@@ -1,7 +1,6 @@
-import { Pool } from 'pg';
-
-import type { ServerContext } from './types.js';
 import OpenAI from 'openai';
+import { Pool } from 'pg';
+import type { ServerContext } from './types.js';
 
 export const serverInfo = {
   name: 'tiger-slack',
