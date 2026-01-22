@@ -1,4 +1,6 @@
 --007-message-and-message-vanilla.sql
+
+-- for vector
 set local search_path to public, timescale_functions, pg_catalog;
 -----------------------------------------------------------------------
 -- persist to slack.message and slack.message_vanilla
