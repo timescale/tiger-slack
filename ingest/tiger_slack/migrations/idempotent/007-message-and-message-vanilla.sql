@@ -1,5 +1,5 @@
 --007-message-and-message-vanilla.sql
-
+set local search_path to public, timescale_functions, pg_catalog;
 -----------------------------------------------------------------------
 -- persist to slack.message and slack.message_vanilla
 create or replace function slack.insert_message(_event jsonb, _embedding vector(1536)) returns void

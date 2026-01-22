@@ -4,6 +4,9 @@
 
 -----------------------------------------------------------------------
 -- slack.message
+
+set local search_path to public, timescale_functions, pg_catalog;
+
 create table slack.message_vanilla
 ( ts timestamptz not null
 , channel_id text not null
