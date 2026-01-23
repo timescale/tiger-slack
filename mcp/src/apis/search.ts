@@ -93,7 +93,6 @@ export const searchFactory: ApiFactory<
     semanticWeight: passedSemanticWeight,
     timestampStart,
     timestampEnd,
-    // semanticWeight: passedSemanticWeight,
     users: senderUsersToFilterOn,
   }): Promise<InferSchema<typeof outputSchema>> => {
     const semanticWeight = passedSemanticWeight ?? 0.7;
