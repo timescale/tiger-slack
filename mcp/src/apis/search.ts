@@ -165,9 +165,16 @@ export const searchFactory: ApiFactory<
       };
     }
 
-    const scores: Record<string, number> = {};
+    // if we have semantic + keyword results, let's use reciprocal ranking fusion
+    // to combine the results together
 
+    // we will use this to combine the scores from keyword and semantic. 
+    // since the score is a combination of the ranking from both sets, we will use dictionaries
+    // with {ts}{channel_id} key so that we can maintain a o(n) runtime, rather than o(n^2) if 
+    // we were to iterate over one list and find the same key in the other list
+    const scores: Record<string, number> = {};
     const keyToMessage: Record<string, Message> = {};
+
     semanticResults.forEach((message, index) => {
       const key = getMessageKey(message);
 
@@ -183,6 +190,7 @@ export const searchFactory: ApiFactory<
         (scores[key] || 0) + (1 - semanticWeight) * (1 / (60 + index));
     });
 
+    // sort the dictionary by the score in descending order
     const sorted = Object.entries(scores).sort(([, aScore], [, bScore]) => {
       if (aScore === bScore) return 0;
       return aScore > bScore ? -1 : 1;
