@@ -1,4 +1,4 @@
-import type { Channel, MessageInThread } from '../types.js';
+import type { Channel, Message, MessageInThread } from '../types.js';
 import { generatePermalink } from './addMessageLinks.js';
 import { convertTimestampToTs } from './formatTs.js';
 
@@ -85,10 +85,13 @@ export const messagesToTree = (
 
   return { channels, involvedUsers };
 };
-
-const normalizeMessageTs = (msg: MessageInThread): MessageInThread => ({
-  ...msg,
-  ts: convertTimestampToTs(msg.ts) ?? msg.ts,
-  thread_ts:
-    (msg.thread_ts && convertTimestampToTs(msg.thread_ts)) || msg.thread_ts,
-});
+export function normalizeMessageTs<Type extends Message | MessageInThread>(
+  msg: Type,
+): Type {
+  return {
+    ...msg,
+    ts: convertTimestampToTs(msg.ts) ?? msg.ts,
+    thread_ts:
+      (msg.thread_ts && convertTimestampToTs(msg.thread_ts)) || msg.thread_ts,
+  };
+}
