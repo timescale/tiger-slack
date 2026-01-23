@@ -27,12 +27,6 @@ const inputSchema = {
       .describe(
         'Optional start date for the message range. Defaults to null, which means that search will be against all historic messages.',
       ),
-    timestampEnd: z.coerce
-      .date()
-      .nullable()
-      .describe(
-        'Optional end date for the message range. Defaults to the current time.',
-      ),
   }).shape,
   channels: z
     .string()
