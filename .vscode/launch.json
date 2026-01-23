@@ -46,6 +46,44 @@
                 "group": "mcp",
                 "order": 1
             }
+        },
+        {
+            "name": "Run Message Migration",
+            "type": "python",
+            "request": "launch",
+            "module": "tiger_slack.migrate_messages",
+            "args": [
+                "--dest-table",
+                "slack.message_vanilla"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Message Migration - Continue",
+            "type": "python",
+            "request": "launch",
+            "module": "tiger_slack.migrate_messages",
+            "args": [
+                "--resume",
+                "${workspaceFolder}/ingest/migration_job_20260122_095200.json"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Import",
+            "type": "python",
+            "request": "launch",
+            "module": "tiger_slack.import",
+            "args": [
+                "${workspaceFolder}/dump"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }

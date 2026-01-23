@@ -16,6 +16,7 @@ Usage:
 import asyncio
 import json
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -211,6 +212,10 @@ async def run_migration(
                 break
 
             batch_num += 1
+
+            # Sleep between batches to avoid overloading the database
+            time.sleep(5)
+
 
     finally:
         await conn.close()
