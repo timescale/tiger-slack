@@ -199,7 +199,7 @@ export const searchFactory: ApiFactory<
     return {
       messages:
         sorted.slice(0, limit).map(([key]) => {
-          // biome-ignore lint/style/noNonNullAssertion: This is always going to be set
+          // biome-ignore lint/style/noNonNullAssertion: keyToMessage[key] is always going to be set
           const message = normalizeMessageTs(keyToMessage[key]!);
           message.permalink = includePermalinks
             ? generatePermalink(message)
