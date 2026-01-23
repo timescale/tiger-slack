@@ -168,9 +168,9 @@ export const searchFactory: ApiFactory<
     // if we have semantic + keyword results, let's use reciprocal ranking fusion
     // to combine the results together
 
-    // we will use this to combine the scores from keyword and semantic. 
+    // we will use this to combine the scores from keyword and semantic.
     // since the score is a combination of the ranking from both sets, we will use dictionaries
-    // with {ts}{channel_id} key so that we can maintain a o(n) runtime, rather than o(n^2) if 
+    // with {ts}{channel_id} key so that we can maintain a o(n) runtime, rather than o(n^2) if
     // we were to iterate over one list and find the same key in the other list
     const scores: Record<string, number> = {};
     const keyToMessage: Record<string, Message> = {};
