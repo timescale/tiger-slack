@@ -85,6 +85,7 @@ export const messagesToTree = (
 
   return { channels, involvedUsers };
 };
+
 export function normalizeMessageTs<Type extends Message | MessageInThread>(
   msg: Type,
 ): Type {
