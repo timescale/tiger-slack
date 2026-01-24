@@ -6,8 +6,6 @@
 create extension if not exists vectorscale CASCADE;
 create extension if not exists pg_textsearch;
 
-set local search_path to public, timescale_functions, pg_catalog;
-
 -- pg_textsearch now supports hypertables, but it does not support compression/chunking
 -- so we need to disable it and decompress all chunks
 perform remove_compression_policy('slack.message');
