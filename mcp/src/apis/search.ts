@@ -1,4 +1,5 @@
 import type { ApiFactory, InferSchema } from '@tigerdata/mcp-boilerplate';
+import type { QueryResult } from 'pg';
 import { z } from 'zod';
 import {
   type Message,
@@ -9,11 +10,9 @@ import {
 import { generatePermalink } from '../util/addMessageLinks.js';
 import { findChannel } from '../util/findChannel.js';
 import { findUser } from '../util/findUser.js';
-import {
-  coalesce,
-  getMessageFields,
-  getSearchMethod,
-} from '../util/messageFields.js';
+import { getMessageKey } from '../util/getMessageKey.js';
+import { getMessageFields } from '../util/messageFields.js';
+import { normalizeMessageTs } from '../util/messagesToTree.js';
 
 const inputSchema = {
   ...zCommonSearchFilters.extend({
@@ -22,6 +21,12 @@ const inputSchema = {
       .min(1)
       .nullable()
       .describe('The maximum number of messages to return. Defaults to 20.'),
+    timestampStart: z.coerce
+      .date()
+      .nullable()
+      .describe(
+        'Optional start date for the message range. Defaults to null, which means that search will be against all historic messages.',
+      ),
   }).shape,
   channels: z
     .string()
@@ -41,15 +46,15 @@ const inputSchema = {
     .describe(
       'Search query for hybrid search on Slack messages. Will return the messages that match the criterion.',
     ),
-  // semanticWeight: z
-  //   .number()
-  //   .multipleOf(0.1)
-  //   .min(0)
-  //   .max(1)
-  //   .nullable()
-  //   .describe(
-  //     'Controls the balance between semantic and keyword search. 0 = keyword only, 0.5 = equal mix, 1 = semantic only. Default is 0.7 (favor semantic search).',
-  //   ),
+  semanticWeight: z
+    .number()
+    .multipleOf(0.1)
+    .min(0)
+    .max(1)
+    .nullable()
+    .describe(
+      'Controls the balance between semantic and keyword search. 0 = keyword only, 0.5 = equal mix, 1 = semantic only. Default is 0.7 (favor semantic search).',
+    ),
 } as const;
 
 const outputSchema = {
@@ -79,16 +84,12 @@ export const searchFactory: ApiFactory<
     includePermalinks,
     keyword,
     limit: passedLimit,
+    semanticWeight: passedSemanticWeight,
     timestampStart,
     timestampEnd,
-    // semanticWeight: passedSemanticWeight,
     users: senderUsersToFilterOn,
   }): Promise<InferSchema<typeof outputSchema>> => {
-    // since pg_textsearch is not yet stable for slack.messages
-    // we are going to force this to be a full semantic search for now
-    const passedSemanticWeight = 1;
-
-    const semanticWeight = passedSemanticWeight ?? 1; // passedSemanticWeight ?? 0.7;
+    const semanticWeight = passedSemanticWeight ?? 0.7;
     const useSemanticSearch = semanticWeight > 0;
     const useKeywordSearch = semanticWeight < 1;
 
@@ -99,6 +100,7 @@ export const searchFactory: ApiFactory<
           await openAIClient.embeddings.create({
             input: keyword,
             model: 'text-embedding-3-small',
+
             dimensions: 1536,
           })
         ).data[0]
@@ -120,77 +122,102 @@ export const searchFactory: ApiFactory<
       channelIdsToFilterOn = channelObjs.map((u) => u.id);
     }
 
-    const commonFilter = `
-     WHERE text != ''
-          AND (($2::TEXT[] IS NULL) OR (user_id = ANY($2)))
-          AND (($3::TEXT[] IS NULL) OR (channel_id = ANY($3)))
-          AND (($4::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $4::TIMESTAMPTZ)
-          AND ($5::TIMESTAMPTZ IS NULL OR ts <= $5::TIMESTAMPTZ)
-          `;
+    const createQuery = async (type: 'semantic' | 'keyword') =>
+      pgPool.query<Message>(
+        `SELECT 
+          ${getMessageFields({ includeFiles, coerceType: true })} 
+        FROM slack.message_vanilla
+        WHERE text != ''
+          AND (($1::TEXT[] IS NULL) OR (user_id = ANY($1)))
+          AND (($2::TEXT[] IS NULL) OR (channel_id = ANY($2)))
+          AND (($3::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $3::TIMESTAMPTZ)
+          AND ($4::TIMESTAMPTZ IS NULL OR ts <= $4::TIMESTAMPTZ)
+        ORDER BY ${type === 'semantic' ? `embedding <=> $5::vector(1536)` : `text <@> to_bm25query($5::text, 'slack.message_vanilla_text_bm25_idx')`}
+        LIMIT $6`,
+        [
+          userIdsToFilterOn,
+          channelIdsToFilterOn,
+          timestampStart?.toISOString(),
+          timestampEnd?.toISOString(),
+          type === 'semantic' ? JSON.stringify(embedding?.embedding) : keyword,
+          limit * 2,
+        ],
+      );
 
-    const rankAlias = 'rank';
+    const resultsPromises: (Promise<QueryResult<Message>> | null)[] = [
+      useKeywordSearch ? createQuery('keyword') : null,
+      useKeywordSearch ? createQuery('semantic') : null,
+    ];
 
-    const semanticMethod = getSearchMethod({
-      type: 'semantic',
-      embeddingVariable: '$1',
-      rankAlias,
-    });
+    const results = await Promise.all(resultsPromises);
 
-    const keywordMethod = 'ts'; // getSearchMethod({
-    // 	type: "keyword",
-    // 	searchKeywordVariable: keyword,
-    // 	rankAlias,
-    // });
+    const [keywordResults, semanticResults] = results.map((x) => x?.rows);
 
-    const results = await pgPool.query<Message>(
-      `WITH semantic_search AS (
-        SELECT 
-          ${getMessageFields({ includeFiles, coerceType: false, rankingMethod: semanticMethod })} FROM slack.message
-        ${commonFilter}
-        ORDER BY ${semanticMethod}
-        LIMIT $6
-      ),
-      keyword_search AS (
-        SELECT
-          ${getMessageFields({
-            includeFiles,
-            coerceType: false,
-            //rankingMethod: keywordMethod,
-          })}, 1 as rank FROM slack.message
-        ${commonFilter}
-          ORDER BY ${keywordMethod}
-          LIMIT $7
-      )
-      SELECT
-        ${coalesce(getMessageFields({ includeFiles, flattenToString: false }), 's', 'k').join(',')}
-        , ($8 * COALESCE(1.0 / (60 + s.rank), 0.0) +
-            (1 - $8) * COALESCE(1.0 / (60 + k.rank), 0.0)) AS combined_score
-      FROM semantic_search s
-      FULL OUTER JOIN keyword_search k ON s.ts = k.ts AND s.channel_id = k.channel_id
-      ORDER BY combined_score DESC
-      LIMIT $9
-    `,
-      [
-        embedding?.embedding ? JSON.stringify(embedding?.embedding) : null,
-        userIdsToFilterOn,
-        channelIdsToFilterOn,
-        timestampStart?.toISOString(),
-        timestampEnd?.toISOString(),
-        useSemanticSearch ? limit * 2 : 0,
-        useKeywordSearch ? limit * 2 : 0,
-        semanticWeight,
-        limit,
-      ],
-    );
-
-    if (includePermalinks) {
-      results.rows.forEach((message) => {
-        message.permalink = generatePermalink(message);
-      });
+    if (!keywordResults) {
+      return {
+        messages: getResultMessages(semanticResults, limit, includePermalinks),
+      };
     }
 
+    if (!semanticResults) {
+      return {
+        messages: getResultMessages(keywordResults, limit, includePermalinks),
+      };
+    }
+
+    // if we have semantic + keyword results, let's use reciprocal ranking fusion
+    // to combine the results together
+
+    // we will use this to combine the scores from keyword and semantic.
+    // since the score is a combination of the ranking from both sets, we will use dictionaries
+    // with {ts}{channel_id} key so that we can maintain a o(n) runtime, rather than o(n^2) if
+    // we were to iterate over one list and find the same key in the other list
+    const scores: Record<string, number> = {};
+    const keyToMessage: Record<string, Message> = {};
+
+    semanticResults.forEach((message, index) => {
+      const key = getMessageKey(message);
+
+      scores[key] = (scores[key] || 0) + semanticWeight * (1 / (60 + index));
+      keyToMessage[key] = message;
+    });
+
+    keywordResults.forEach((message, index) => {
+      const key = getMessageKey(message);
+
+      keyToMessage[key] = message;
+      scores[key] =
+        (scores[key] || 0) + (1 - semanticWeight) * (1 / (60 + index));
+    });
+
+    // sort the dictionary by the score in descending order
+    const sorted = Object.entries(scores).sort(([, aScore], [, bScore]) => {
+      if (aScore === bScore) return 0;
+      return aScore > bScore ? -1 : 1;
+    });
+
     return {
-      messages: results.rows,
+      messages:
+        sorted.slice(0, limit).map(([key]) => {
+          // biome-ignore lint/style/noNonNullAssertion: keyToMessage[key] is always going to be set
+          const message = normalizeMessageTs(keyToMessage[key]!);
+          message.permalink = includePermalinks
+            ? generatePermalink(message)
+            : message.permalink;
+          return message;
+        }) || [],
     };
   },
 });
+
+const getResultMessages = (
+  messages: Message[] | undefined,
+  limit: number,
+  includePermalinks: boolean,
+): Message[] =>
+  messages?.slice(0, limit).map((message) => {
+    message.permalink = includePermalinks
+      ? generatePermalink(message)
+      : message.permalink;
+    return normalizeMessageTs(message);
+  }) || [];
