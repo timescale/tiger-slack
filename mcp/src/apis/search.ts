@@ -146,7 +146,7 @@ export const searchFactory: ApiFactory<
 
     const resultsPromises: (Promise<QueryResult<Message>> | null)[] = [
       useKeywordSearch ? createQuery('keyword') : null,
-      useKeywordSearch ? createQuery('semantic') : null,
+      useSemanticSearch ? createQuery('semantic') : null,
     ];
 
     const results = await Promise.all(resultsPromises);
