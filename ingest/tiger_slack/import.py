@@ -16,7 +16,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
-from tiger_slack.utils import parse_since_flag
+from tiger_slack.utils import parse_since_flag, remove_null_bytes
 
 load_dotenv(dotenv_path=find_dotenv())
 setup_logging()
@@ -120,7 +120,8 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
                         async with con.transaction() as _:
                             event = {"channel": channel}
                             await cur.execute(
-                                "select * from slack.upsert_channel(%s)", (Jsonb(event),)
+                                "select * from slack.upsert_channel(%s)",
+                                (Jsonb(event),),
                             )
     except Exception as e:
         logger.exception(
@@ -130,81 +131,9 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
         raise
 
 
-MESSAGE_SQL = """\
-insert into slack.message
-( ts
-, channel_id
-, team
-, text
-, type
-, user_id
-, blocks
-, event_ts
-, thread_ts
-, channel_type
-, client_msg_id
-, parent_user_id
-, bot_id
-, attachments
-, files
-, app_id
-, subtype
-, trigger_id
-, workflow_id
-, display_as_bot
-, upload
-, x_files
-, icons
-, language
-, edited
-, reactions
-)
-select
-  slack.to_timestamptz(o->>'ts')
-, o->>'channel_id'
-, o->>'team'
-, o->>'text'
-, o->>'type'
-, o->>'user'
-, o->'blocks'
-, slack.to_timestamptz(o->>'event_ts')
-, slack.to_timestamptz(o->>'thread_ts')
-, o->>'channel_type'
-, (o->>'client_msg_id')::uuid
-, o->>'parent_user_id'
-, o->>'bot_id'
-, o->'attachments'
-, o->'files'
-, o->>'app_id'
-, o->>'subtype'
-, o->>'trigger_id'
-, o->>'workflow_id'
-, (o->>'display_as_bot')::bool
-, (o->>'upload')::bool
-, o->'x_files'
-, o->'icons'
-, o->'language'
-, o->'edited'
-, r.reactions
-from jsonb_array_elements(%(json)s) o
-left outer join lateral
-(
-    select jsonb_agg
-    ( jsonb_build_object
-      ( 'reaction', r."name"
-      , 'user_id', u.user_id
-      )
-    ) as reactions
-    from jsonb_to_recordset(o->'reactions') r("name" text, users jsonb, count bigint)
-    inner join lateral jsonb_array_elements_text(r.users) u(user_id) on (true)
-    where o->>'type' = 'message'
-) r on (true)
-where o->>'type' = 'message'
-on conflict (ts, channel_id) do nothing
-"""
-
-
-async def insert_messages(pool: AsyncConnectionPool, messages: list[dict[str, Any]]) -> None:
+async def insert_messages(
+    pool: AsyncConnectionPool, messages: list[dict[str, Any]]
+) -> None:
     with logfire.suppress_instrumentation():
         async with (
             pool.connection() as con,
@@ -214,7 +143,8 @@ async def insert_messages(pool: AsyncConnectionPool, messages: list[dict[str, An
                 async with con.transaction() as _:
                     with logfire.suppress_instrumentation():
                         await cur.execute(
-                            MESSAGE_SQL, dict(json=Jsonb(messages))
+                            "select slack.insert_message(%s)",
+                            [Jsonb(remove_null_bytes(messages))],
                         )
             except psycopg.Error as e:
                 logger.exception(
@@ -246,10 +176,10 @@ async def process_file_worker(
 
             new_messages = json.loads(file_content)
             for message in new_messages:
-                message["channel_id"] = channel_id
-           
+                message["channel"] = channel_id
+
             messages += new_messages
-            
+
             if len(messages) >= 500:
                 with logfire.span(
                     "loading_messages_batch",
@@ -274,10 +204,17 @@ async def process_file_worker(
 
 
 @logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
-async def load_messages(pool: AsyncConnectionPool, directory: Path, num_workers: int = 4, since: date | None = None) -> None:
+async def load_messages(
+    pool: AsyncConnectionPool,
+    directory: Path,
+    num_workers: int = 4,
+    since: date | None = None,
+) -> None:
     files = await channel_files(pool, directory, since)
 
-    with logfire.span("parallel_processing", num_files=len(files), num_workers=num_workers):
+    with logfire.span(
+        "parallel_processing", num_files=len(files), num_workers=num_workers
+    ):
         file_queue: asyncio.Queue[tuple[str, Path] | None] = asyncio.Queue()
         for file_data in files:
             await file_queue.put(file_data)
@@ -293,10 +230,7 @@ async def load_messages(pool: AsyncConnectionPool, directory: Path, num_workers:
 
 @logfire.instrument("compress_old_messages", extract_args=False)
 async def compress_old_messages(pool: AsyncConnectionPool) -> None:
-    async with (
-        pool.connection() as con,
-        con.cursor() as cur
-    ):
+    async with pool.connection() as con, con.cursor() as cur:
         # get the compression policy interval
         await cur.execute("""
               select config->>'compress_after' as compress_after
@@ -312,9 +246,12 @@ async def compress_old_messages(pool: AsyncConnectionPool) -> None:
         compress_after = row[0]  # e.g., "45 days"
 
         # get a list of chunks to compress
-        await cur.execute("""
+        await cur.execute(
+            """
             select public.show_chunks('slack.message', older_than => %s::text::interval)
-        """, (compress_after,))
+        """,
+            (compress_after,),
+        )
         chunks = [row[0] for row in await cur.fetchall()]
         if not chunks:
             logger.info("no chunks from slack.message to compress")
@@ -323,9 +260,12 @@ async def compress_old_messages(pool: AsyncConnectionPool) -> None:
         # compress each chunk
         for chunk in chunks:
             with logfire.span("compressing_chunk", chunk=chunk):
-                await cur.execute("""
+                await cur.execute(
+                    """
                       select public.compress_chunk(%s::text::regclass, if_not_compressed => true)
-                  """, (chunk,))
+                  """,
+                    (chunk,),
+                )
 
 
 @logfire.instrument("run_import")
