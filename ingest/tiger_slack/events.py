@@ -58,8 +58,7 @@ async def upsert_channel(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
 
 @logfire.instrument("insert_message", extract_args=False)
 async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    if event.get("text"):
-        event["embedding"] = await get_message_embedding(event)
+    event["embedding"] = await get_message_embedding(event)
 
     async with (
         pool.connection() as con,
@@ -74,11 +73,7 @@ async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
 
 @logfire.instrument("update_message", extract_args=False)
 async def update_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    embedding = (
-        await get_message_embedding(event.get("message", {}))
-        if event.get("text")
-        else None
-    )
+    embedding = await get_message_embedding(event.get("message", {}))
 
     async with (
         pool.connection() as con,
