@@ -58,26 +58,37 @@ async def upsert_channel(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
 
 @logfire.instrument("insert_message", extract_args=False)
 async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    embedding = await get_message_embedding(event)
+    if event.get("text"):
+        event["embedding"] = await get_message_embedding(event)
 
     async with (
         pool.connection() as con,
         con.transaction() as _,
         con.cursor() as cur,
     ):
-        await cur.execute("select slack.insert_message(%s, %s::vector(1536))", (Jsonb(remove_null_bytes(event)), embedding))
+        await cur.execute(
+            "select slack.insert_message(%s)",
+            [Jsonb(remove_null_bytes(event))],
+        )
 
 
 @logfire.instrument("update_message", extract_args=False)
 async def update_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    embedding = await get_message_embedding(event.get("message", {}))
+    embedding = (
+        await get_message_embedding(event.get("message", {}))
+        if event.get("text")
+        else None
+    )
 
     async with (
         pool.connection() as con,
         con.transaction() as _,
         con.cursor() as cur,
     ):
-        await cur.execute("select slack.update_message(%s, %s::vector(1536))", (Jsonb(remove_null_bytes(event)), embedding))
+        await cur.execute(
+            "select slack.update_message(%s, %s::vector(1536))",
+            (Jsonb(remove_null_bytes(event)), embedding),
+        )
 
 
 @logfire.instrument("delete_message", extract_args=False)
@@ -173,6 +184,6 @@ async def register_handlers(app: AsyncApp, pool: AsyncConnectionPool) -> None:
                 await insert_event(pool, event, error)
 
     app.message("")(event_handler)
-    
+
     # listen to all events
     app.event(re.compile(r".+"))(event_handler)
