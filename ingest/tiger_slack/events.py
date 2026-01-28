@@ -9,7 +9,10 @@ from psycopg_pool import AsyncConnectionPool
 from slack_bolt.app.async_app import AsyncApp
 from slack_bolt.context.ack.async_ack import AsyncAck
 
-from tiger_slack.utils import get_message_embedding, remove_null_bytes
+from tiger_slack.utils import (
+    add_message_embeddings,
+    remove_null_bytes,
+)
 
 
 def diagnostic_to_dict(d: psycopg.errors.Diagnostic) -> dict[str, Any]:
@@ -58,7 +61,7 @@ async def upsert_channel(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
 
 @logfire.instrument("insert_message", extract_args=False)
 async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    event["embedding"] = await get_message_embedding(event)
+    await add_message_embeddings(event)
 
     async with (
         pool.connection() as con,

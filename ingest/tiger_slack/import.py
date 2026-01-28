@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import re
+from collections import deque
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ import aiofiles
 import click
 import logfire
 import psycopg
+import tiktoken
 from dotenv import find_dotenv, load_dotenv
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
@@ -22,6 +24,10 @@ load_dotenv(dotenv_path=find_dotenv())
 setup_logging()
 
 logger = logging.getLogger(__name__)
+token_encoder = tiktoken.encoding_for_model("text-embedding-3-small")
+
+MAX_TOKENS_PER_EMBEDDING_REQUEST = 300_000
+DESIRED_BATCH_SIZE = 500  # legacy, not sure if legit
 
 
 @logfire.instrument("get_channel_name_to_id_mapping", extract_args=False)
@@ -71,12 +77,12 @@ async def channel_files(
                 except ValueError:
                     logger.warning(
                         f"Skipping file with invalid date format in filename: {file}",
-                        extra={"channel_id": channel_id, "filename": file.name}
+                        extra={"channel_id": channel_id, "filename": file.name},
                     )
             else:
                 logger.warning(
                     f"Skipping file with non-standard filename: {file}",
-                    extra={"channel_id": channel_id, "filename": file.name}
+                    extra={"channel_id": channel_id, "filename": file.name},
                 )
 
     all_files.sort(key=lambda x: x[1].name)
@@ -159,7 +165,9 @@ async def process_file_worker(
     file_queue: asyncio.Queue[tuple[str, Path] | None],
     worker_id: int,
 ) -> None:
-    messages = []
+    current_message_batch: list[dict[str, Any]] = []
+    message_buffer: deque[dict[str, Any]] = []
+
     files: list[tuple[str, str]] = []
 
     while True:
@@ -174,33 +182,53 @@ async def process_file_worker(
             async with aiofiles.open(file) as f:
                 file_content = await f.read()
 
-            new_messages = json.loads(file_content)
-            for message in new_messages:
+            message_buffer += deque(json.loads(file_content))
+
+            token_count = 0
+            should_add_messages_to_current_batch = True
+
+            while len(message_buffer) and should_add_messages_to_current_batch:
+                message = message_buffer.popleft()
+
                 message["channel"] = channel_id
 
-            messages += new_messages
+                text = message["text"]
 
-            if len(messages) >= 500:
+                tokens_in_message_text = len(token_encoder.encode(text)) if text else 0
+
+                can_encode_message_in_batch = (
+                    token_count + tokens_in_message_text
+                ) < MAX_TOKENS_PER_EMBEDDING_REQUEST
+
+                if can_encode_message_in_batch:
+                    current_message_batch.append(message)
+                    token_count += tokens_in_message_text
+                else:
+                    message_buffer.appendleft(message)
+                    should_add_messages_to_current_batch = False
+
+            if len(current_message_batch) >= DESIRED_BATCH_SIZE:
                 with logfire.span(
                     "loading_messages_batch",
                     worker_id=worker_id,
                     files=files,
-                    num_messages=len(messages),
+                    num_messages=len(current_message_batch),
                 ):
-                    await insert_messages(pool, messages)
+                    await insert_messages(pool, current_message_batch)
                 files = []
-                messages = []
+                current_message_batch = []
         finally:
             file_queue.task_done()
 
-    if len(messages) > 0:
+    remaining_messages = [*current_message_batch, *message_buffer]
+    if len(remaining_messages) > 0:
         with logfire.span(
             "loading_messages_final_batch",
             worker_id=worker_id,
             files=files,
-            num_messages=len(messages),
+            num_messages=len(remaining_messages),
         ):
-            await insert_messages(pool, messages)
+            await insert_messages(pool, remaining_messages)
 
 
 @logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
@@ -276,22 +304,22 @@ async def run_import(directory: Path, num_workers: int, since: date | None = Non
         await pool.wait()
 
         # Load users from users.json file
-        users_file = directory / "users.json"
-        if users_file.exists():
-            await load_users_from_file(pool, users_file)
-        else:
-            logger.warning(
-                "users.json not found in directory", extra={"directory": directory}
-            )
+        # users_file = directory / "users.json"
+        # if users_file.exists():
+        #     await load_users_from_file(pool, users_file)
+        # else:
+        #     logger.warning(
+        #         "users.json not found in directory", extra={"directory": directory}
+        #     )
 
         # Load channels from channels.json file
-        channels_file = directory / "channels.json"
-        if channels_file.exists():
-            await load_channels_from_file(pool, channels_file)
-        else:
-            logger.warning(
-                "channels.json not found in directory", extra={"directory": directory}
-            )
+        # channels_file = directory / "channels.json"
+        # if channels_file.exists():
+        #     await load_channels_from_file(pool, channels_file)
+        # else:
+        #     logger.warning(
+        #         "channels.json not found in directory", extra={"directory": directory}
+        #     )
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory, num_workers, since)

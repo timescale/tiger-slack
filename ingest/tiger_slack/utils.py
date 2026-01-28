@@ -16,6 +16,7 @@ T = TypeVar("T")
 embedder = Embedder("openai:text-embedding-3-small")
 logger = logging.getLogger(__name__)
 
+
 @logfire.instrument("is_table_empty", extract_args=["table_name"])
 async def is_table_empty(pool: AsyncConnectionPool, table_name: str) -> bool:
     async with pool.connection() as con, con.cursor() as cur:
@@ -109,15 +110,36 @@ def parse_since_flag(since_str: str) -> date:
     )
 
 
-async def get_message_embedding(message: dict[str, Any]) -> Sequence[float] | None:
-    txt = message.get("text")
-    if not txt:
-        return None
-    
-    try:
-        result = await embedder.embed_documents(txt, settings={"dimensions": 1536})
-        return result.embeddings[0]
-    except Exception:
-        logger.exception("Could not embed message", extra={"txt": txt})
+async def add_message_embeddings(
+    messages: list[dict[str, Any]] | dict[str, Any],
+) -> None:
+    messages = [messages] if not isinstance(messages, list) else messages
 
-    
+    # this is the request that will be sent to the embedder
+    text_to_embed: Sequence[str] = []
+
+    # because not all messages should be embedded (e.g. they do not have text)
+    # we need to keep track of the message indexes for the embeddings
+    index_map: Sequence[int] = []
+
+    for index, message in enumerate(messages):
+        text = message.get("text")
+
+        if not text:
+            continue
+
+        text_to_embed.append(text)
+        index_map.append(index)
+
+    if not text_to_embed:
+        return
+    try:
+        result = await embedder.embed_documents(
+            text_to_embed, settings={"dimensions": 1536}
+        )
+        for embedding_index, embedding in enumerate(result.embeddings):
+            message_index = index_map[embedding_index]
+            messages[message_index]["embedding"] = embedding
+
+    except Exception:
+        logger.exception("Could not embed messages", extra={"txt": text_to_embed})
