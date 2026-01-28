@@ -18,7 +18,11 @@ from psycopg_pool import AsyncConnectionPool
 
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
-from tiger_slack.utils import parse_since_flag, remove_null_bytes
+from tiger_slack.utils import (
+    add_message_embeddings,
+    parse_since_flag,
+    remove_null_bytes,
+)
 
 load_dotenv(dotenv_path=find_dotenv())
 setup_logging()
@@ -146,6 +150,7 @@ async def insert_messages(
             con.cursor() as cur,
         ):
             try:
+                await add_message_embeddings(messages)
                 async with con.transaction() as _:
                     with logfire.suppress_instrumentation():
                         await cur.execute(
@@ -166,7 +171,7 @@ async def process_file_worker(
     worker_id: int,
 ) -> None:
     current_message_batch: list[dict[str, Any]] = []
-    message_buffer: deque[dict[str, Any]] = []
+    message_buffer: deque[dict[str, Any]] = deque([])
 
     files: list[tuple[str, str]] = []
 
