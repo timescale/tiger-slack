@@ -149,3 +149,56 @@ as $func$
     on conflict (channel_id, ts) do nothing;
 $func$ language sql volatile security invoker
 ;
+
+-- this updates slack.update_message to use the embedding on the event, itself
+create or replace function slack.update_message(_event jsonb) returns void
+as $func$
+    update slack.message m set
+      team = _event->>'team'
+    , text = _event->>'text'
+    , type = _event->>'type'
+    , user_id = _event->>'user'
+    , blocks = _event->'blocks'
+    , attachments = _event->'attachments'
+    , files = _event->'files'
+    , app_id = _event->>'app_id'
+    , subtype = _event->>'subtype'
+    , trigger_id = _event->>'trigger_id'
+    , workflow_id = _event->>'workflow_id'
+    , display_as_bot = (_event->>'display_as_bot')::boolean
+    , upload = (_event->>'upload')::boolean
+    , x_files =  _event->'x_files'
+    , icons = _event->'icons'
+    , language = _event->'language'
+    , edited = _event->'edited'
+    , embedding = (_event->'embedding')::text::vector(1536)
+    where (m.ts, m.channel_id) =
+    ( slack.to_timestamptz(_event->>'ts')
+    , _event->>'channel'
+    );
+
+    update slack.message_vanilla m set
+         team = _event->>'team'
+    , text = _event->>'text'
+    , type = _event->>'type'
+    , user_id = _event->>'user'
+    , blocks = _event->'blocks'
+    , attachments = _event->'attachments'
+    , files = _event->'files'
+    , app_id = _event->>'app_id'
+    , subtype = _event->>'subtype'
+    , trigger_id = _event->>'trigger_id'
+    , workflow_id = _event->>'workflow_id'
+    , display_as_bot = (_event->>'display_as_bot')::boolean
+    , upload = (_event->>'upload')::boolean
+    , x_files =  _event->'x_files'
+    , icons = _event->'icons'
+    , language = _event->'language'
+    , edited = _event->'edited'
+    , embedding = (_event->'embedding')::text::vector(1536)
+    where (m.ts, m.channel_id) =
+    ( slack.to_timestamptz(_event->>'ts')
+    , _event->>'channel'
+    );
+$func$ language sql volatile security invoker
+;

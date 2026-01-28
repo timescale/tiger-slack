@@ -73,7 +73,11 @@ async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
 
 @logfire.instrument("update_message", extract_args=False)
 async def update_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    embedding = await get_message_embedding(event.get("message", {}))
+    message = event["message"]
+    if not message:
+        return
+    message["channel"] = event.get("channel")
+    await add_message_embeddings(message)
 
     async with (
         pool.connection() as con,
@@ -81,8 +85,8 @@ async def update_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
         con.cursor() as cur,
     ):
         await cur.execute(
-            "select slack.update_message(%s, %s::vector(1536))",
-            (Jsonb(remove_null_bytes(event)), embedding),
+            "select slack.update_message(%s)",
+            [Jsonb(remove_null_bytes(message))],
         )
 
 
