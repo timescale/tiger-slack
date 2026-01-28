@@ -170,7 +170,12 @@ async def process_file_worker(
     file_queue: asyncio.Queue[tuple[str, Path] | None],
     worker_id: int,
 ) -> None:
+    # the messages to be imported in next batch
     current_message_batch: list[dict[str, Any]] = []
+
+    # the messages to be processed (e.g. ones that were imported via file read)
+    # using a deque (double ended queue) instead of a list because a pop(0) in a
+    # list is a O(n) operation, rather than the O(1) you get with deque
     message_buffer: deque[dict[str, Any]] = deque([])
 
     files: list[tuple[str, str]] = []
@@ -192,6 +197,9 @@ async def process_file_worker(
             token_count = 0
             should_add_messages_to_current_batch = True
 
+            # this is going to add messages to the current batch if the message's token count
+            # plus the current batch's token count does not exceed openai's embedding max per request
+            # which is currently 300k for the model we are using
             while len(message_buffer) and should_add_messages_to_current_batch:
                 message = message_buffer.popleft()
 
@@ -212,7 +220,10 @@ async def process_file_worker(
                     message_buffer.appendleft(message)
                     should_add_messages_to_current_batch = False
 
-            if len(current_message_batch) >= DESIRED_BATCH_SIZE:
+            if (
+                len(current_message_batch) >= DESIRED_BATCH_SIZE
+                or not should_add_messages_to_current_batch
+            ):
                 with logfire.span(
                     "loading_messages_batch",
                     worker_id=worker_id,
@@ -222,6 +233,7 @@ async def process_file_worker(
                     await insert_messages(pool, current_message_batch)
                 files = []
                 current_message_batch = []
+                should_add_messages_to_current_batch = True
         finally:
             file_queue.task_done()
 
