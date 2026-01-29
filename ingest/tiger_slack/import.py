@@ -185,18 +185,29 @@ async def process_file_worker(
 
     while True:
         item = await file_queue.get()
-        if item is None:
+        if item is None and not len(message_buffer):
             break
 
-        channel_id, file = item
-        files.append((channel_id, str(file.relative_to(file.parent.parent))))
+        if item is not None:
+            channel_id, file = item
+            files.append((channel_id, str(file.relative_to(file.parent.parent))))
+            try:
+                async with aiofiles.open(file) as f:
+                    file_content = await f.read()
+
+                new_messages = deque(json.loads(file_content))
+
+                for message in new_messages:
+                    message["channel"] = channel_id
+                    add_message_searchable_content(message)
+
+                message_buffer += new_messages
+            except Exception:
+                logfire.exception(f"Failed to load messages from {file}")
 
         try:
-            async with aiofiles.open(file) as f:
-                file_content = await f.read()
-
-            message_buffer += deque(json.loads(file_content))
-
+            # this is determined by whether or not the current batches token count
+            # is less than the MAX_TOKENS_PER_EMBEDDING_REQUEST count
             should_add_messages_to_current_batch = True
 
             # this is going to add messages to the current batch if the message's token count
@@ -204,9 +215,6 @@ async def process_file_worker(
             # which is currently 300k for the model we are using
             while len(message_buffer) and should_add_messages_to_current_batch:
                 message = message_buffer.popleft()
-
-                message["channel"] = channel_id
-                add_message_searchable_content(message)
 
                 searchable_content = message[SEARCH_CONTENT_FIELD]
 
@@ -242,8 +250,8 @@ async def process_file_worker(
                 current_message_batch = []
                 token_count = 0
                 should_add_messages_to_current_batch = True
-        finally:
-            file_queue.task_done()
+        except Exception:
+            logfire.exception("Failed to import messages")
 
     remaining_messages = [*current_message_batch, *message_buffer]
     if len(remaining_messages) > 0:
@@ -254,6 +262,8 @@ async def process_file_worker(
             num_messages=len(remaining_messages),
         ):
             await insert_messages(pool, remaining_messages)
+
+    file_queue.task_done()
 
 
 @logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
