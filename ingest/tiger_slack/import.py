@@ -181,6 +181,7 @@ async def process_file_worker(
     message_buffer: deque[dict[str, Any]] = deque([])
 
     files: list[tuple[str, str]] = []
+    token_count = 0
 
     while True:
         item = await file_queue.get()
@@ -196,7 +197,6 @@ async def process_file_worker(
 
             message_buffer += deque(json.loads(file_content))
 
-            token_count = 0
             should_add_messages_to_current_batch = True
 
             # this is going to add messages to the current batch if the message's token count
@@ -240,6 +240,7 @@ async def process_file_worker(
                     await insert_messages(pool, current_message_batch)
                 files = []
                 current_message_batch = []
+                token_count = 0
                 should_add_messages_to_current_batch = True
         finally:
             file_queue.task_done()
@@ -328,22 +329,22 @@ async def run_import(directory: Path, num_workers: int, since: date | None = Non
         await pool.wait()
 
         # Load users from users.json file
-        users_file = directory / "users.json"
-        if users_file.exists():
-            await load_users_from_file(pool, users_file)
-        else:
-            logger.warning(
-                "users.json not found in directory", extra={"directory": directory}
-            )
+        # users_file = directory / "users.json"
+        # if users_file.exists():
+        #     await load_users_from_file(pool, users_file)
+        # else:
+        #     logger.warning(
+        #         "users.json not found in directory", extra={"directory": directory}
+        #     )
 
         # Load channels from channels.json file
-        channels_file = directory / "channels.json"
-        if channels_file.exists():
-            await load_channels_from_file(pool, channels_file)
-        else:
-            logger.warning(
-                "channels.json not found in directory", extra={"directory": directory}
-            )
+        # channels_file = directory / "channels.json"
+        # if channels_file.exists():
+        #     await load_channels_from_file(pool, channels_file)
+        # else:
+        #     logger.warning(
+        #         "channels.json not found in directory", extra={"directory": directory}
+        #     )
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory, num_workers, since)
