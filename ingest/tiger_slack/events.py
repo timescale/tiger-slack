@@ -11,6 +11,7 @@ from slack_bolt.context.ack.async_ack import AsyncAck
 
 from tiger_slack.utils import (
     add_message_embeddings,
+    add_message_searchable_content,
     remove_null_bytes,
 )
 
@@ -61,6 +62,7 @@ async def upsert_channel(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
 
 @logfire.instrument("insert_message", extract_args=False)
 async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
+    add_message_searchable_content(event)
     await add_message_embeddings(event)
 
     async with (
@@ -79,7 +81,12 @@ async def update_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
     message = event["message"]
     if not message:
         return
+
+    # in these update events, the channel is not on the message, itself,
+    # so we have to grab it from the event and slap it on the message
     message["channel"] = event.get("channel")
+
+    add_message_searchable_content(message)
     await add_message_embeddings(message)
 
     async with (
