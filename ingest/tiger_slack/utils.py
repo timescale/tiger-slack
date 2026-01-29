@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 from collections.abc import Sequence
@@ -121,12 +120,11 @@ def parse_since_flag(since_str: str) -> date:
 # Text: attachment[].text
 # Fallback: attachment[].fallback
 def add_message_searchable_content(message: dict[str, Any]) -> None:
-    message_text = message.get("text")
-    message[SEARCH_CONTENT_FIELD] = f"Text: {message_text}"
-    attachments = json.loads(message.get("attachments", "[]"))
+    message[SEARCH_CONTENT_FIELD] = message.get("text", "")
+    attachments = message.get("attachments", [])
 
     for index, attachment in enumerate(attachments):
-        message[SEARCH_CONTENT_FIELD] += f"\nAttachment {index + 1}"
+        message[SEARCH_CONTENT_FIELD] += f"\n\nAttachment {index + 1}"
 
         attachment_title = attachment.get("title")
         attachment_text = attachment.get("text")
@@ -136,8 +134,15 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
             message[SEARCH_CONTENT_FIELD] += f"\nTitle: {attachment_title}"
         if attachment_text:
             message[SEARCH_CONTENT_FIELD] += f"\nText: {attachment_text}"
-        if attachment_fallback:
+        if (
+            attachment_fallback
+            and attachment_fallback != attachment_title
+            and attachment_fallback != attachment_text
+        ):
             message[SEARCH_CONTENT_FIELD] += f"\nFallback: {attachment_fallback}"
+
+    if not message[SEARCH_CONTENT_FIELD]:
+        message[SEARCH_CONTENT_FIELD] = None
 
 
 # this method does two things
