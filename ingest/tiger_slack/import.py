@@ -16,10 +16,12 @@ from dotenv import find_dotenv, load_dotenv
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
+from tiger_slack.constants import SEARCH_CONTENT_FIELD
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
 from tiger_slack.utils import (
     add_message_embeddings,
+    add_message_searchable_content,
     parse_since_flag,
     remove_null_bytes,
 )
@@ -204,10 +206,15 @@ async def process_file_worker(
                 message = message_buffer.popleft()
 
                 message["channel"] = channel_id
+                add_message_searchable_content(message)
 
-                text = message["text"]
+                searchable_content = message[SEARCH_CONTENT_FIELD]
 
-                tokens_in_message_text = len(token_encoder.encode(text)) if text else 0
+                tokens_in_message_text = (
+                    len(token_encoder.encode(searchable_content))
+                    if searchable_content
+                    else 0
+                )
 
                 can_encode_message_in_batch = (
                     token_count + tokens_in_message_text
