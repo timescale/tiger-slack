@@ -2,6 +2,8 @@
 
 -----------------------------------------------------------------------
 -- slack.insert_message
+-- this will insert messages into both slack.message (hypertable) and slack.message_vanilla (non-hypertable)
+-- message_vanilla gets an embedding and a searchable_content column, whereas message does not
 create or replace function slack.insert_message(_event jsonb) returns void
 as $func$
     insert into slack.message
@@ -32,65 +34,170 @@ as $func$
     , edited
     )
     select
-      slack.to_timestamptz(_event->>'ts')
-    , _event->>'channel'
-    , _event->>'team'
-    , _event->>'text'
-    , _event->>'type'
-    , _event->>'user'
-    , _event->'blocks'
-    , slack.to_timestamptz(_event->>'event_ts')
-    , slack.to_timestamptz(_event->>'thread_ts')
-    , _event->>'channel_type'
-    , (_event->>'client_msg_id')::uuid
-    , _event->>'parent_user_id'
-    , _event->>'bot_id'
-    , _event->'attachments'
-    , _event->'files'
-    , _event->>'app_id'
-    , _event->>'subtype'
-    , _event->>'trigger_id'
-    , _event->>'workflow_id'
-    , (_event->>'display_as_bot')::boolean
-    , (_event->>'upload')::boolean
-    , _event->'x_files'
-    , _event->'icons'
-    , _event->'language'
-    , _event->'edited'
+      slack.to_timestamptz(e->>'ts')
+    , e->>'channel'
+    , e->>'team'
+    , e->>'text'
+    , e->>'type'
+    , e->>'user'
+    , e->'blocks'
+    , slack.to_timestamptz(e->>'event_ts')
+    , slack.to_timestamptz(e->>'thread_ts')
+    , e->>'channel_type'
+    , (e->>'client_msg_id')::uuid
+    , e->>'parent_user_id'
+    , e->>'bot_id'
+    , e->'attachments'
+    , e->'files'
+    , e->>'app_id'
+    , e->>'subtype'
+    , e->>'trigger_id'
+    , e->>'workflow_id'
+    , (e->>'display_as_bot')::boolean
+    , (e->>'upload')::boolean
+    , e->'x_files'
+    , e->'icons'
+    , e->'language'
+    , e->'edited'
+    -- this case condition allows us to pass in either an array or a
+    -- single instance of a message.
+    from jsonb_array_elements(
+      case when jsonb_typeof(_event) != 'array'
+        then jsonb_build_array(_event)
+        else _event
+      end
+    ) as e
     where not exists
     (
         select 1
         from slack.message_discard d
-        where jsonb_path_match(_event, d.match, silent=>true)
+        where jsonb_path_match(e, d.match, silent=>true)
     )
-    on conflict (channel_id, ts) do nothing
+    on conflict (channel_id, ts) do nothing;
+
+    insert into slack.message_vanilla
+    ( ts
+    , channel_id
+    , team
+    , text
+    , type
+    , user_id
+    , blocks
+    , event_ts
+    , thread_ts
+    , channel_type
+    , client_msg_id
+    , parent_user_id
+    , bot_id
+    , attachments
+    , files
+    , app_id
+    , subtype
+    , trigger_id
+    , workflow_id
+    , display_as_bot
+    , upload
+    , x_files
+    , icons
+    , language
+    , edited
+    , embedding
+    , searchable_content
+    )
+    select
+      slack.to_timestamptz(e->>'ts')
+    , e->>'channel'
+    , e->>'team'
+    , e->>'text'
+    , e->>'type'
+    , e->>'user'
+    , e->'blocks'
+    , slack.to_timestamptz(e->>'event_ts')
+    , slack.to_timestamptz(e->>'thread_ts')
+    , e->>'channel_type'
+    , (e->>'client_msg_id')::uuid
+    , e->>'parent_user_id'
+    , e->>'bot_id'
+    , e->'attachments'
+    , e->'files'
+    , e->>'app_id'
+    , e->>'subtype'
+    , e->>'trigger_id'
+    , e->>'workflow_id'
+    , (e->>'display_as_bot')::boolean
+    , (e->>'upload')::boolean
+    , e->'x_files'
+    , e->'icons'
+    , e->'language'
+    , e->'edited'
+    , (e->'embedding')::text::vector(1536)
+    , e->>'searchable_content'
+    -- this case condition allows us to pass in either an array or a
+    -- single instance of a message.
+    from jsonb_array_elements(
+      case when jsonb_typeof(_event) != 'array'
+        then jsonb_build_array(_event)
+        else _event
+      end
+    ) as e
+    where not exists
+    (
+        select 1
+        from slack.message_discard d
+        where jsonb_path_match(e, d.match, silent=>true)
+    )
+    on conflict (channel_id, ts) do nothing;
 $func$ language sql volatile security invoker
 ;
 
------------------------------------------------------------------------
--- slack.update_message
+-- this updates slack.update_message to use the embedding on the event, itself
 create or replace function slack.update_message(_event jsonb) returns void
 as $func$
     update slack.message m set
-      team = jsonb_extract_path_text(_event, 'message', 'team')
-    , text = jsonb_extract_path_text(_event, 'message', 'text')
-    , type = jsonb_extract_path_text(_event, 'message', 'type')
-    , user_id = jsonb_extract_path_text(_event, 'message', 'user')
-    , blocks = jsonb_extract_path(_event, 'message', 'blocks')
-    , attachments = jsonb_extract_path(_event, 'message', 'attachments')
-    , files = jsonb_extract_path(_event, 'message', 'files')
-    , app_id = jsonb_extract_path_text(_event, 'message', 'app_id')
-    , subtype = jsonb_extract_path_text(_event, 'message', 'subtype')
-    , trigger_id = jsonb_extract_path_text(_event, 'message', 'trigger_id')
-    , workflow_id = jsonb_extract_path_text(_event, 'message', 'workflow_id')
-    , display_as_bot = jsonb_extract_path_text(_event, 'message', 'display_as_bot')::boolean
-    , upload = jsonb_extract_path_text(_event, 'message', 'upload')::boolean
-    , x_files = jsonb_extract_path(_event, 'message', 'x_files')
-    , icons = jsonb_extract_path(_event, 'message', 'icons')
-    , language = jsonb_extract_path(_event, 'message', 'language')
-    , edited = jsonb_extract_path(_event, 'message', 'edited')
-    where (m.ts, m.channel_id) = 
-    ( slack.to_timestamptz(jsonb_extract_path_text(_event, 'message', 'ts'))
+      team = _event->>'team'
+    , text = _event->>'text'
+    , type = _event->>'type'
+    , user_id = _event->>'user'
+    , blocks = _event->'blocks'
+    , attachments = _event->'attachments'
+    , files = _event->'files'
+    , app_id = _event->>'app_id'
+    , subtype = _event->>'subtype'
+    , trigger_id = _event->>'trigger_id'
+    , workflow_id = _event->>'workflow_id'
+    , display_as_bot = (_event->>'display_as_bot')::boolean
+    , upload = (_event->>'upload')::boolean
+    , x_files =  _event->'x_files'
+    , icons = _event->'icons'
+    , language = _event->'language'
+    , edited = _event->'edited'
+    where (m.ts, m.channel_id) =
+    ( slack.to_timestamptz(_event->>'ts')
+    , _event->>'channel'
+    );
+
+    update slack.message_vanilla m set
+         team = _event->>'team'
+    , text = _event->>'text'
+    , type = _event->>'type'
+    , user_id = _event->>'user'
+    , blocks = _event->'blocks'
+    , attachments = _event->'attachments'
+    , files = _event->'files'
+    , app_id = _event->>'app_id'
+    , subtype = _event->>'subtype'
+    , trigger_id = _event->>'trigger_id'
+    , workflow_id = _event->>'workflow_id'
+    , display_as_bot = (_event->>'display_as_bot')::boolean
+    , upload = (_event->>'upload')::boolean
+    , x_files =  _event->'x_files'
+    , icons = _event->'icons'
+    , language = _event->'language'
+    , edited = _event->'edited'
+    , embedding = (_event->'embedding')::text::vector(1536)
+    , searchable_content = _event->>'searchable_content'
+    where (m.ts, m.channel_id) =
+    ( slack.to_timestamptz(_event->>'ts')
     , _event->>'channel'
     );
 $func$ language sql volatile security invoker
@@ -102,7 +209,10 @@ create or replace function slack.delete_message(_event jsonb) returns void
 as $func$
     delete from slack.message m
     where m.ts = slack.to_timestamptz(_event->>'deleted_ts')
-    and m.channel_id = _event->>'channel'
-    ;
+    and m.channel_id = _event->>'channel';
+
+    delete from slack.message_vanilla m
+    where m.ts = slack.to_timestamptz(_event->>'deleted_ts')
+    and m.channel_id = _event->>'channel';
 $func$ language sql volatile security invoker
 ;
