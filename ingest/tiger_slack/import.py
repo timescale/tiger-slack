@@ -303,7 +303,7 @@ async def process_file_worker(
 async def load_messages(
     pool: AsyncConnectionPool,
     directory: Path,
-    num_workers: int = 1,
+    num_workers: int = 4,
     since: date | None = None,
 ) -> None:
     files = await channel_files(pool, directory, since)
