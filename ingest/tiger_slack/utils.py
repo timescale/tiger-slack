@@ -10,6 +10,8 @@ from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
 from pydantic_ai import Embedder
 
+from tiger_slack.constants import SEARCH_CONTENT_FIELD
+
 T = TypeVar("T")
 
 
@@ -110,8 +112,45 @@ def parse_since_flag(since_str: str) -> date:
     )
 
 
+# this will add searchable content to a message
+# It will be formatted like so:
+# Text: message.text
+# Attachment {index}
+# Title: attachment[].title
+# Text: attachment[].text
+# Fallback: attachment[].fallback
+def add_message_searchable_content(message: dict[str, Any]) -> None:
+    message[SEARCH_CONTENT_FIELD] = message.get("text", "")
+    attachments = message.get("attachments", [])
+
+    for index, attachment in enumerate(attachments):
+        message[SEARCH_CONTENT_FIELD] += f"\n\nAttachment {index + 1}"
+
+        attachment_title = attachment.get("title")
+        attachment_text = attachment.get("text")
+        attachment_fallback = attachment.get("fallback")
+
+        if attachment_title:
+            message[SEARCH_CONTENT_FIELD] += f"\nTitle: {attachment_title}"
+        if attachment_text:
+            message[SEARCH_CONTENT_FIELD] += f"\nText: {attachment_text}"
+        if (
+            attachment_fallback
+            and attachment_fallback != attachment_title
+            and attachment_fallback != attachment_text
+        ):
+            message[SEARCH_CONTENT_FIELD] += f"\nFallback: {attachment_fallback}"
+
+    if not message[SEARCH_CONTENT_FIELD]:
+        message[SEARCH_CONTENT_FIELD] = None
+
+
+# this method does two things
+# 1. create a searchable_content value, which is a combination of text + attachments
+# 2. create an embedding of the value from step 1
 async def add_message_embeddings(
     messages: list[dict[str, Any]] | dict[str, Any],
+    use_dummy_embeddings=False,  # adding this here to save tokens when debugging :)
 ) -> None:
     messages = [messages] if not isinstance(messages, list) else messages
 
@@ -123,21 +162,26 @@ async def add_message_embeddings(
     index_map: Sequence[int] = []
 
     for index, message in enumerate(messages):
-        text = message.get("text")
-
-        if not text:
+        searchable_content = message.get(SEARCH_CONTENT_FIELD)
+        if not searchable_content:
             continue
 
-        text_to_embed.append(text)
+        text_to_embed.append(searchable_content)
         index_map.append(index)
 
     if not text_to_embed:
         return
     try:
-        result = await embedder.embed_documents(
-            text_to_embed, settings={"dimensions": 1536}
-        )
-        for embedding_index, embedding in enumerate(result.embeddings):
+        embeddings = None
+        if use_dummy_embeddings:
+            embeddings = [[0.0] * 1536 for _ in range(len(text_to_embed))]
+        else:
+            result = await embedder.embed_documents(
+                text_to_embed, settings={"dimensions": 1536}
+            )
+            embeddings = result.embeddings
+
+        for embedding_index, embedding in enumerate(embeddings):
             message_index = index_map[embedding_index]
             messages[message_index]["embedding"] = embedding
 
