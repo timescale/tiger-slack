@@ -1,6 +1,28 @@
 --004-message.sql
 
 -----------------------------------------------------------------------
+-- slack.filter_messages
+-- Returns messages that don't match any discard patterns
+-- This allows filtering BEFORE expensive operations like embedding
+create or replace function slack.filter_messages(_messages jsonb) returns jsonb
+as $func$
+    select jsonb_agg(e)
+    from jsonb_array_elements(
+        case when jsonb_typeof(_messages) != 'array'
+            then jsonb_build_array(_messages)
+            else _messages
+        end
+    ) as e
+    where not exists (
+        select 1
+        from slack.message_discard d
+        where jsonb_path_match(e, d.match, silent=>true)
+    );
+$func$ language sql stable security invoker
+;
+
+
+-----------------------------------------------------------------------
 -- slack.insert_message
 -- this will insert messages into both slack.message (hypertable) and slack.message_vanilla (non-hypertable)
 -- message_vanilla gets an embedding and a searchable_content column, whereas message does not
@@ -37,7 +59,7 @@ as $func$
       slack.to_timestamptz(e->>'ts')
     , e->>'channel'
     , e->>'team'
-    , e->>'text'
+    , nullif(e->>'text', '')
     , e->>'type'
     , e->>'user'
     , e->'blocks'
@@ -59,21 +81,7 @@ as $func$
     , e->'icons'
     , e->'language'
     , e->'edited'
-    -- this case condition allows us to pass in either an array or a
-    -- single instance of a message.
-    from jsonb_array_elements(
-      case when jsonb_typeof(_event) != 'array'
-        then jsonb_build_array(_event)
-        else _event
-      end
-    ) as e
-    where not exists
-    (
-        select 1
-        from slack.message_discard d
-        where jsonb_path_match(e, d.match, silent=>true)
-    )
-    on conflict (channel_id, ts) do nothing;
+    from jsonb_array_elements(slack.filter_messages(_event)) as e;
 
     insert into slack.message_vanilla
     ( ts
@@ -108,7 +116,7 @@ as $func$
       slack.to_timestamptz(e->>'ts')
     , e->>'channel'
     , e->>'team'
-    , e->>'text'
+    , nullif(e->>'text', '')
     , e->>'type'
     , e->>'user'
     , e->'blocks'
@@ -131,22 +139,8 @@ as $func$
     , e->'language'
     , e->'edited'
     , (e->'embedding')::text::vector(1536)
-    , e->>'searchable_content'
-    -- this case condition allows us to pass in either an array or a
-    -- single instance of a message.
-    from jsonb_array_elements(
-      case when jsonb_typeof(_event) != 'array'
-        then jsonb_build_array(_event)
-        else _event
-      end
-    ) as e
-    where not exists
-    (
-        select 1
-        from slack.message_discard d
-        where jsonb_path_match(e, d.match, silent=>true)
-    )
-    on conflict (channel_id, ts) do nothing;
+    , nullif(e->>'searchable_content', '')
+    from jsonb_array_elements(slack.filter_messages(_event)) as e;
 $func$ language sql volatile security invoker
 ;
 
@@ -155,7 +149,7 @@ create or replace function slack.update_message(_event jsonb) returns void
 as $func$
     update slack.message m set
       team = _event->>'team'
-    , text = _event->>'text'
+    , text = nullif(_event->>'text', '')
     , type = _event->>'type'
     , user_id = _event->>'user'
     , blocks = _event->'blocks'
@@ -178,7 +172,7 @@ as $func$
 
     update slack.message_vanilla m set
          team = _event->>'team'
-    , text = _event->>'text'
+    , text = nullif(_event->>'text', '')
     , type = _event->>'type'
     , user_id = _event->>'user'
     , blocks = _event->'blocks'
@@ -195,7 +189,7 @@ as $func$
     , language = _event->'language'
     , edited = _event->'edited'
     , embedding = (_event->'embedding')::text::vector(1536)
-    , searchable_content = _event->>'searchable_content'
+    , searchable_content = nullif(_event->>'searchable_content', '')
     where (m.ts, m.channel_id) =
     ( slack.to_timestamptz(_event->>'ts')
     , _event->>'channel'
