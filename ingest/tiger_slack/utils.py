@@ -150,6 +150,7 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
 # 2. create an embedding of the value from step 1
 async def add_message_embeddings(
     messages: list[dict[str, Any]] | dict[str, Any],
+    use_dummy_embeddings=False,  # adding this here to save tokens when debugging :)
 ) -> None:
     messages = [messages] if not isinstance(messages, list) else messages
 
@@ -171,10 +172,16 @@ async def add_message_embeddings(
     if not text_to_embed:
         return
     try:
-        result = await embedder.embed_documents(
-            text_to_embed, settings={"dimensions": 1536}
-        )
-        for embedding_index, embedding in enumerate(result.embeddings):
+        embeddings = None
+        if use_dummy_embeddings:
+            embeddings = [[0.0] * 1536 for _ in range(len(text_to_embed))]
+        else:
+            result = await embedder.embed_documents(
+                text_to_embed, settings={"dimensions": 1536}
+            )
+            embeddings = result.embeddings
+
+        for embedding_index, embedding in enumerate(embeddings):
             message_index = index_map[embedding_index]
             messages[message_index]["embedding"] = embedding
 
