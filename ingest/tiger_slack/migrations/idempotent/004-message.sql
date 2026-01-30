@@ -81,7 +81,8 @@ as $func$
     , e->'icons'
     , e->'language'
     , e->'edited'
-    from jsonb_array_elements(slack.filter_messages(_event)) as e;
+    from jsonb_array_elements(slack.filter_messages(_event)) as e
+    on conflict (channel_id, ts) do nothing;
 
     insert into slack.message_vanilla
     ( ts
@@ -140,7 +141,8 @@ as $func$
     , e->'edited'
     , (e->'embedding')::text::vector(1536)
     , nullif(e->>'searchable_content', '')
-    from jsonb_array_elements(slack.filter_messages(_event)) as e;
+    from jsonb_array_elements(slack.filter_messages(_event)) as e
+    on conflict (channel_id, ts) do nothing;
 $func$ language sql volatile security invoker
 ;
 

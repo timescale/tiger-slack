@@ -143,6 +143,22 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
         raise
 
 
+async def filter_messages(
+    pool: AsyncConnectionPool, messages: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Filter out messages that match discard patterns before embedding."""
+    with logfire.suppress_instrumentation():
+        async with pool.connection() as con, con.cursor() as cur:
+            await cur.execute(
+                "select slack.filter_messages(%s)",
+                [Jsonb(messages)],
+            )
+            result = await cur.fetchone()
+            if result and result[0]:
+                return result[0]
+            return []
+
+
 async def insert_messages(
     pool: AsyncConnectionPool, messages: list[dict[str, Any]]
 ) -> None:
@@ -152,7 +168,6 @@ async def insert_messages(
             con.cursor() as cur,
         ):
             try:
-                await add_message_embeddings(messages)
                 async with con.transaction() as _:
                     with logfire.suppress_instrumentation():
                         await cur.execute(
@@ -167,6 +182,13 @@ async def insert_messages(
                 raise
 
 
+## This is the process
+# 1. get file from the file queue
+# 2. read all messages from file
+# 3. filter out messages (this uses the psql function that uses message_discard)
+# 4. add filtered messages to the message_buffer
+# 5. iterate over message_buffer, building up a batch of messages to insert (this is based on the token count of each new message  and DESIRED_BATCH_SIZE)
+# 6. keep looping until all files are read (when the queue returns None), the message buffer is processed and the current batch is empty
 async def process_file_worker(
     pool: AsyncConnectionPool,
     file_queue: asyncio.Queue[tuple[str, Path] | None],
@@ -185,8 +207,6 @@ async def process_file_worker(
 
     while True:
         item = await file_queue.get()
-        if item is None and not len(message_buffer):
-            break
 
         if item is not None:
             channel_id, file = item
@@ -195,15 +215,22 @@ async def process_file_worker(
                 async with aiofiles.open(file) as f:
                     file_content = await f.read()
 
-                new_messages = deque(json.loads(file_content))
+                raw_messages = json.loads(file_content)
 
-                for message in new_messages:
+                for message in raw_messages:
                     message["channel"] = channel_id
                     add_message_searchable_content(message)
 
+                # Filter out messages that match discard patterns
+                filtered_messages = await filter_messages(pool, raw_messages)
+
+                new_messages = deque(filtered_messages)
                 message_buffer += new_messages
+
             except Exception:
                 logfire.exception(f"Failed to load messages from {file}")
+        else:
+            file_queue.task_done()
 
         try:
             # this is determined by whether or not the current batches token count
@@ -213,64 +240,70 @@ async def process_file_worker(
             # this is going to add messages to the current batch if the message's token count
             # plus the current batch's token count does not exceed openai's embedding max per request
             # which is currently 300k for the model we are using
-            while len(message_buffer) and should_add_messages_to_current_batch:
-                message = message_buffer.popleft()
+            while len(message_buffer) or len(current_message_batch):
+                if len(message_buffer):
+                    message = message_buffer.popleft()
 
-                searchable_content = message[SEARCH_CONTENT_FIELD]
+                    searchable_content = message[SEARCH_CONTENT_FIELD]
 
-                tokens_in_message_text = (
-                    len(token_encoder.encode(searchable_content))
-                    if searchable_content
-                    else 0
-                )
+                    tokens_in_message_text = (
+                        len(token_encoder.encode(searchable_content))
+                        if searchable_content
+                        else 0
+                    )
 
-                can_encode_message_in_batch = (
-                    token_count + tokens_in_message_text
-                ) < MAX_TOKENS_PER_EMBEDDING_REQUEST
+                    can_encode_message_in_batch = (
+                        token_count + tokens_in_message_text
+                    ) < MAX_TOKENS_PER_EMBEDDING_REQUEST
 
-                if can_encode_message_in_batch:
-                    current_message_batch.append(message)
-                    token_count += tokens_in_message_text
-                else:
-                    message_buffer.appendleft(message)
-                    should_add_messages_to_current_batch = False
+                    if can_encode_message_in_batch:
+                        current_message_batch.append(message)
+                        token_count += tokens_in_message_text
+                    else:
+                        message_buffer.appendleft(message)
+                        should_add_messages_to_current_batch = False
 
-            if (
-                len(current_message_batch) >= DESIRED_BATCH_SIZE
-                or not should_add_messages_to_current_batch
-            ):
-                with logfire.span(
-                    "loading_messages_batch",
-                    worker_id=worker_id,
-                    files=files,
-                    num_messages=len(current_message_batch),
+                ## insert the current batch if:
+                # the batch size meets our DESIRED_BATCH_SIZE
+                # OR we can't add more messages due to token size
+                # OR there are no more files to read and there are no
+                # more messages in the buffer
+                if (
+                    (len(current_message_batch) >= DESIRED_BATCH_SIZE)
+                    or (not should_add_messages_to_current_batch)
+                    or (item is None and not len(message_buffer))
                 ):
-                    await insert_messages(pool, current_message_batch)
-                files = []
-                current_message_batch = []
-                token_count = 0
-                should_add_messages_to_current_batch = True
+                    with logfire.span(
+                        "Embedding messages", num_messages=len(current_message_batch)
+                    ):
+                        await add_message_embeddings(current_message_batch)
+                    with logfire.span(
+                        "loading_messages_batch",
+                        worker_id=worker_id,
+                        files=files,
+                        num_messages=len(current_message_batch),
+                    ):
+                        await insert_messages(pool, current_message_batch)
+                    files = []
+                    current_message_batch = []
+                    token_count = 0
+                    should_add_messages_to_current_batch = True
+                # if there are more files to read from and there is nothing else in the buffer
+                elif item is not None and not len(message_buffer):
+                    break
+
+            # the buffer and current batch are empty and there are no more files to process
+            if item is None:
+                break
         except Exception:
             logfire.exception("Failed to import messages")
-
-    remaining_messages = [*current_message_batch, *message_buffer]
-    if len(remaining_messages) > 0:
-        with logfire.span(
-            "loading_messages_final_batch",
-            worker_id=worker_id,
-            files=files,
-            num_messages=len(remaining_messages),
-        ):
-            await insert_messages(pool, remaining_messages)
-
-    file_queue.task_done()
 
 
 @logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
 async def load_messages(
     pool: AsyncConnectionPool,
     directory: Path,
-    num_workers: int = 4,
+    num_workers: int = 1,
     since: date | None = None,
 ) -> None:
     files = await channel_files(pool, directory, since)
@@ -283,12 +316,19 @@ async def load_messages(
             await file_queue.put(file_data)
 
         # Add sentinel values to signal workers to stop
+        # Otherwise, the queue.get() will hang indefinitely in each worker
         for _ in range(num_workers):
             await file_queue.put(None)
 
         async with asyncio.TaskGroup() as tg:
             for worker_id in range(num_workers):
-                tg.create_task(process_file_worker(pool, file_queue, worker_id))
+                tg.create_task(
+                    process_file_worker(
+                        pool,
+                        file_queue,
+                        worker_id,
+                    )
+                )
 
 
 @logfire.instrument("compress_old_messages", extract_args=False)
@@ -339,22 +379,22 @@ async def run_import(directory: Path, num_workers: int, since: date | None = Non
         await pool.wait()
 
         # Load users from users.json file
-        # users_file = directory / "users.json"
-        # if users_file.exists():
-        #     await load_users_from_file(pool, users_file)
-        # else:
-        #     logger.warning(
-        #         "users.json not found in directory", extra={"directory": directory}
-        #     )
+        users_file = directory / "users.json"
+        if users_file.exists():
+            await load_users_from_file(pool, users_file)
+        else:
+            logger.warning(
+                "users.json not found in directory", extra={"directory": directory}
+            )
 
         # Load channels from channels.json file
-        # channels_file = directory / "channels.json"
-        # if channels_file.exists():
-        #     await load_channels_from_file(pool, channels_file)
-        # else:
-        #     logger.warning(
-        #         "channels.json not found in directory", extra={"directory": directory}
-        #     )
+        channels_file = directory / "channels.json"
+        if channels_file.exists():
+            await load_channels_from_file(pool, channels_file)
+        else:
+            logger.warning(
+                "channels.json not found in directory", extra={"directory": directory}
+            )
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory, num_workers, since)
