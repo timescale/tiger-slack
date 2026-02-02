@@ -95,8 +95,12 @@
             "request": "launch",
             "program": "${workspaceFolder}/ingest/scripts/backfill_searchable_content.py",
             "args": [
-                "--batch-size",
-                "1000"
+                "--reembed-batch-size",
+                "1000",
+                "--in-place-batch-size",
+                "50000",
+                "--workers",
+                "4"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/ingest",
@@ -108,8 +112,12 @@
             "request": "launch",
             "program": "${workspaceFolder}/ingest/scripts/backfill_searchable_content.py",
             "args": [
-                "--batch-size",
+                "--reembed-batch-size",
                 "1000",
+                "--in-place-batch-size",
+                "50000",
+                "--workers",
+                "4",
                 "--use-dummy-embeddings"
             ],
             "console": "integratedTerminal",
