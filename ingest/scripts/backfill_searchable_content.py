@@ -228,7 +228,8 @@ async def backfill_worker_with_attachments(
 
 
 async def run_backfill(
-    batch_size: int,
+    reembed_batch_size: int,
+    in_place_batch_size: int,
     workers: int = 4,
     use_dummy_embeddings: bool = False,
 ) -> None:
@@ -249,7 +250,8 @@ async def run_backfill(
         click.echo(
             f"  With attachments: {count_with_attachments:,} (requires re-embedding)"
         )
-        click.echo(f"  Batch size: {batch_size:,}")
+        click.echo(f"  In-place batch size (Phase 1): {in_place_batch_size:,}")
+        click.echo(f"  Re-embed batch size (Phase 2): {reembed_batch_size:,}")
         click.echo(f"  Parallel workers: {workers}")
         if use_dummy_embeddings:
             click.echo("  Using dummy embeddings (not calling OpenAI API)")
@@ -276,12 +278,12 @@ async def run_backfill(
 
                 start_time = datetime.now()
                 click.echo(
-                    f"\nBatch {batch_num}: Processing up to {batch_size:,} rows "
+                    f"\nBatch {batch_num}: Processing up to {in_place_batch_size:,} rows "
                     f"({remaining:,} remaining)..."
                 )
 
                 rows_updated = await backfill_without_attachments(
-                    conn, batch_size * 100
+                    conn, in_place_batch_size
                 )
                 elapsed = (datetime.now() - start_time).total_seconds()
                 total_rows_updated += rows_updated
@@ -310,7 +312,7 @@ async def run_backfill(
 
             # Spawn parallel workers using asyncio.gather
             worker_tasks = [
-                backfill_worker_with_attachments(i + 1, batch_size, use_dummy_embeddings)
+                backfill_worker_with_attachments(i + 1, reembed_batch_size, use_dummy_embeddings)
                 for i in range(workers)
             ]
             worker_results = await asyncio.gather(*worker_tasks)
@@ -343,10 +345,16 @@ async def run_backfill(
 
 @click.command()
 @click.option(
-    "--batch-size",
+    "--reembed-batch-size",
     type=int,
     default=1000,
-    help="Number of rows to process per batch (default: 1000)",
+    help="Batch size for Phase 2 (re-embedding rows with attachments, default: 1000)",
+)
+@click.option(
+    "--in-place-batch-size",
+    type=int,
+    default=50000,
+    help="Batch size for Phase 1 (in-place SQL updates without attachments, default: 50000)",
 )
 @click.option(
     "--workers",
@@ -359,10 +367,17 @@ async def run_backfill(
     is_flag=True,
     help="Use dummy embeddings instead of calling OpenAI API (for testing)",
 )
-def main(batch_size: int, workers: int, use_dummy_embeddings: bool) -> None:
+def main(
+    reembed_batch_size: int,
+    in_place_batch_size: int,
+    workers: int,
+    use_dummy_embeddings: bool,
+) -> None:
     """Backfill searchable_content and re-embed messages with attachments."""
 
-    asyncio.run(run_backfill(batch_size, workers, use_dummy_embeddings))
+    asyncio.run(
+        run_backfill(reembed_batch_size, in_place_batch_size, workers, use_dummy_embeddings)
+    )
 
 
 if __name__ == "__main__":
