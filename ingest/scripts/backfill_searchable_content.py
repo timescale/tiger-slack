@@ -45,33 +45,27 @@ load_dotenv(dotenv_path=find_dotenv(usecwd=False))
 
 async def get_total_count(conn: AsyncConnection) -> int:
     """Get total count of rows to backfill."""
-    cur = await conn.cursor()
-    try:
+    async with conn.cursor() as cur:
         await cur.execute(
             "SELECT COUNT(*) FROM slack.message_vanilla WHERE searchable_content IS NULL"
         )
         result = await cur.fetchone()
         return result[0] if result else 0
-    finally:
-        await cur.close()
 
 
 async def get_count_without_attachments(conn: AsyncConnection) -> int:
     """Get count of rows without attachments that need backfilling."""
-    cur = await conn.cursor()
-    try:
+    async with conn.cursor() as cur:
         await cur.execute(
             """
             SELECT COUNT(*)
             FROM slack.message_vanilla
             WHERE searchable_content IS NULL
-              AND (attachments IS NULL OR jsonb_array_length(attachments) = 0)
+            AND (attachments IS NULL OR jsonb_array_length(attachments) = 0)
             """
         )
         result = await cur.fetchone()
         return result[0] if result else 0
-    finally:
-        await cur.close()
 
 
 async def backfill_without_attachments(conn: AsyncConnection, batch_size: int) -> int:
@@ -80,31 +74,30 @@ async def backfill_without_attachments(conn: AsyncConnection, batch_size: int) -
     This is done entirely in SQL for maximum performance.
     Returns number of rows updated.
     """
-    cur = await conn.cursor()
-    try:
-        await cur.execute(
-            """
-            UPDATE slack.message_vanilla
-            SET searchable_content = text
-            WHERE (ts, channel_id) IN (
-                SELECT ts, channel_id
-                FROM slack.message_vanilla
-                WHERE searchable_content IS NULL
-                  AND (attachments IS NULL OR jsonb_array_length(attachments) = 0)
-                ORDER BY channel_id, ts
-                LIMIT %s
+    async with conn.cursor() as cur:
+        try:
+            await cur.execute(
+                """
+                UPDATE slack.message_vanilla
+                SET searchable_content = text
+                WHERE (ts, channel_id) IN (
+                    SELECT ts, channel_id
+                    FROM slack.message_vanilla
+                    WHERE searchable_content IS NULL
+                    AND (attachments IS NULL OR jsonb_array_length(attachments) = 0)
+                    ORDER BY channel_id, ts
+                    LIMIT %s
+                    FOR UPDATE SKIP LOCKED
+                )
+                """,
+                (batch_size,),
             )
-            """,
-            (batch_size,),
-        )
-        rows_updated = cur.rowcount or 0
-        await conn.commit()
-        return rows_updated
-    except Exception:
-        await conn.rollback()
-        raise
-    finally:
-        await cur.close()
+            rows_updated = cur.rowcount or 0
+            await conn.commit()
+            return rows_updated
+        except Exception:
+            await conn.rollback()
+            raise
 
 
 async def backfill_batch_with_attachments(
@@ -140,73 +133,71 @@ async def backfill_batch_with_attachments(
         FOR UPDATE SKIP LOCKED
     """
 
-    cur = await conn.cursor()
-    try:
-        await cur.execute(fetch_query, (batch_size,))
-        rows = await cur.fetchall()
+    async with conn.cursor() as cur:
+        try:
+            await cur.execute(fetch_query, (batch_size,))
+            rows = await cur.fetchall()
 
-        if not rows:
-            return 0
+            if not rows:
+                return 0
 
-        # Convert rows to message dictionaries
-        messages = []
-        for row in rows:
-            message = {
-                "ts": str(row[0].timestamp()),  # Convert datetime to timestamp
-                "channel": row[1],
-                "text": row[2],
-                "attachments": row[3],  # This is already parsed JSONB
-            }
-            messages.append(message)
+            # Convert rows to message dictionaries
+            messages = []
+            for row in rows:
+                message = {
+                    "ts": str(row[0].timestamp()),  # Convert datetime to timestamp
+                    "channel": row[1],
+                    "text": row[2],
+                    "attachments": row[3],  # This is already parsed JSONB
+                }
+                messages.append(message)
 
-        # Generate searchable_content for all messages
-        for message in messages:
-            add_message_searchable_content(message)
+            # Generate searchable_content for all messages
+            for message in messages:
+                add_message_searchable_content(message)
 
-        # Re-embed only messages that have attachments
-        messages_to_embed = [msg for msg in messages if msg.get("attachments")]
+            # Re-embed only messages that have attachments
+            messages_to_embed = [msg for msg in messages if msg.get("attachments")]
 
-        if messages_to_embed:
-            await add_message_embeddings(
-                messages_to_embed,
-                use_dummy_embeddings=1.0 if use_dummy_embeddings else None,
-            )
-
-        # Update the database
-        update_query = """
-            UPDATE slack.message_vanilla
-            SET
-                searchable_content = %s,
-                embedding = COALESCE((%s)::text::vector(1536), embedding)
-            WHERE ts = to_timestamp(%s) AND channel_id = %s
-        """
-
-        updates = []
-        for message in messages:
-            # Convert embedding list to vector format if present
-            embedding = None
-            if "embedding" in message:
-                # Convert list to JSONB for vector cast
-                embedding = Jsonb(message["embedding"])
-
-            updates.append(
-                (
-                    message.get("searchable_content"),
-                    embedding,
-                    float(message["ts"]),
-                    message["channel"],
+            if messages_to_embed:
+                await add_message_embeddings(
+                    messages_to_embed,
+                    use_dummy_embeddings=1.0 if use_dummy_embeddings else None,
                 )
-            )
 
-        await cur.executemany(update_query, updates)
-        await conn.commit()
+            # Update the database
+            update_query = """
+                UPDATE slack.message_vanilla
+                SET
+                    searchable_content = %s,
+                    embedding = COALESCE((%s)::text::vector(1536), embedding)
+                WHERE ts = to_timestamp(%s) AND channel_id = %s
+            """
 
-        return len(updates)
-    except Exception:
-        await conn.rollback()
-        raise
-    finally:
-        await cur.close()
+            updates = []
+            for message in messages:
+                # Convert embedding list to vector format if present
+                embedding = None
+                if "embedding" in message:
+                    # Convert list to JSONB for vector cast
+                    embedding = Jsonb(message["embedding"])
+
+                updates.append(
+                    (
+                        message.get("searchable_content"),
+                        embedding,
+                        float(message["ts"]),
+                        message["channel"],
+                    )
+                )
+
+            await cur.executemany(update_query, updates)
+            await conn.commit()
+
+            return len(updates)
+        except Exception:
+            await conn.rollback()
+            raise
 
 
 async def backfill_worker_with_attachments(
@@ -241,7 +232,9 @@ async def backfill_worker_with_attachments(
     finally:
         await conn.close()
 
-    click.echo(f"  [Worker {worker_id}] Complete - {total_updated:,} total rows updated")
+    click.echo(
+        f"  [Worker {worker_id}] Complete - {total_updated:,} total rows updated"
+    )
     return total_updated
 
 
@@ -330,7 +323,9 @@ async def run_backfill(
 
             # Spawn parallel workers using asyncio.gather
             worker_tasks = [
-                backfill_worker_with_attachments(i + 1, reembed_batch_size, use_dummy_embeddings)
+                backfill_worker_with_attachments(
+                    i + 1, reembed_batch_size, use_dummy_embeddings
+                )
                 for i in range(workers)
             ]
             worker_results = await asyncio.gather(*worker_tasks)
@@ -340,7 +335,9 @@ async def run_backfill(
             total_rows_updated += phase2_rows_updated
 
             elapsed_phase2 = (datetime.now() - start_time_phase2).total_seconds()
-            rows_per_sec = phase2_rows_updated / elapsed_phase2 if elapsed_phase2 > 0 else 0
+            rows_per_sec = (
+                phase2_rows_updated / elapsed_phase2 if elapsed_phase2 > 0 else 0
+            )
 
             click.echo(
                 f"\n✓ Phase 2 complete: {phase2_rows_updated:,} rows updated in {elapsed_phase2:.2f}s "
@@ -394,7 +391,9 @@ def main(
     """Backfill searchable_content and re-embed messages with attachments."""
 
     asyncio.run(
-        run_backfill(reembed_batch_size, in_place_batch_size, workers, use_dummy_embeddings)
+        run_backfill(
+            reembed_batch_size, in_place_batch_size, workers, use_dummy_embeddings
+        )
     )
 
 
