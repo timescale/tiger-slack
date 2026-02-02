@@ -276,7 +276,7 @@ async def process_file_worker(
                     with logfire.span(
                         "Embedding messages", num_messages=len(current_message_batch)
                     ):
-                        await add_message_embeddings(current_message_batch)
+                        await add_message_embeddings(current_message_batch, True)
                     with logfire.span(
                         "loading_messages_batch",
                         worker_id=worker_id,
@@ -379,22 +379,22 @@ async def run_import(directory: Path, num_workers: int, since: date | None = Non
         await pool.wait()
 
         # Load users from users.json file
-        users_file = directory / "users.json"
-        if users_file.exists():
-            await load_users_from_file(pool, users_file)
-        else:
-            logger.warning(
-                "users.json not found in directory", extra={"directory": directory}
-            )
+        # users_file = directory / "users.json"
+        # if users_file.exists():
+        #     await load_users_from_file(pool, users_file)
+        # else:
+        #     logger.warning(
+        #         "users.json not found in directory", extra={"directory": directory}
+        #     )
 
         # Load channels from channels.json file
-        channels_file = directory / "channels.json"
-        if channels_file.exists():
-            await load_channels_from_file(pool, channels_file)
-        else:
-            logger.warning(
-                "channels.json not found in directory", extra={"directory": directory}
-            )
+        # channels_file = directory / "channels.json"
+        # if channels_file.exists():
+        #     await load_channels_from_file(pool, channels_file)
+        # else:
+        #     logger.warning(
+        #         "channels.json not found in directory", extra={"directory": directory}
+        #     )
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory, num_workers, since)
