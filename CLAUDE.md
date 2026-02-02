@@ -199,7 +199,22 @@ docker compose logs -f
 - For database issues: verify TimescaleDB container is running
 - For Slack connection issues: verify tokens in `.env`
 
-### 5. Test MCP Server (Optional)
+### 5. Import Historical Data (Optional)
+Ask user: "Would you like to import historical Slack messages from a workspace export?"
+
+If yes:
+```bash
+cd ingest && just import /path/to/slack-export
+```
+
+This runs `scripts/import.py` which imports users, channels, and message history from a Slack workspace export. The script:
+
+- Processes messages in parallel with duplicate detection
+- Generates embeddings for search functionality
+- Automatically compresses old chunks after import
+- Can be resumed if interrupted (naturally idempotent)
+
+### 6. Test MCP Server (Optional)
 Ask user: "Would you like to test the MCP server functionality?"
 
 If yes, run the MCP Inspector tool:
@@ -209,7 +224,7 @@ npx @modelcontextprotocol/inspector --cli http://localhost:3001/mcp --method too
 
 This will test the MCP server by calling the `getUsers` function and should return a list of all users in your Slack workspace with their timezones.
 
-### 6. Claude Code MCP Integration (Optional)
+### 7. Claude Code MCP Integration (Optional)
 Ask user: "Would you like to integrate this with Claude Code for AI-powered Slack analysis?"
 
 If yes:
