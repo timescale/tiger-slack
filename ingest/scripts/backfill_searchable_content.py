@@ -45,17 +45,21 @@ load_dotenv(dotenv_path=find_dotenv(usecwd=False))
 
 async def get_total_count(conn: AsyncConnection) -> int:
     """Get total count of rows to backfill."""
-    async with conn.cursor() as cur:
+    cur = await conn.cursor()
+    try:
         await cur.execute(
             "SELECT COUNT(*) FROM slack.message_vanilla WHERE searchable_content IS NULL"
         )
         result = await cur.fetchone()
         return result[0] if result else 0
+    finally:
+        await cur.close()
 
 
 async def get_count_without_attachments(conn: AsyncConnection) -> int:
     """Get count of rows without attachments that need backfilling."""
-    async with conn.cursor() as cur:
+    cur = await conn.cursor()
+    try:
         await cur.execute(
             """
             SELECT COUNT(*)
@@ -66,6 +70,8 @@ async def get_count_without_attachments(conn: AsyncConnection) -> int:
         )
         result = await cur.fetchone()
         return result[0] if result else 0
+    finally:
+        await cur.close()
 
 
 async def backfill_without_attachments(conn: AsyncConnection, batch_size: int) -> int:
@@ -74,7 +80,8 @@ async def backfill_without_attachments(conn: AsyncConnection, batch_size: int) -
     This is done entirely in SQL for maximum performance.
     Returns number of rows updated.
     """
-    async with conn.cursor() as cur:
+    cur = await conn.cursor()
+    try:
         await cur.execute(
             """
             UPDATE slack.message_vanilla
@@ -93,6 +100,11 @@ async def backfill_without_attachments(conn: AsyncConnection, batch_size: int) -
         rows_updated = cur.rowcount or 0
         await conn.commit()
         return rows_updated
+    except Exception:
+        await conn.rollback()
+        raise
+    finally:
+        await cur.close()
 
 
 async def backfill_batch_with_attachments(
@@ -128,7 +140,8 @@ async def backfill_batch_with_attachments(
         FOR UPDATE SKIP LOCKED
     """
 
-    async with conn.cursor() as cur:
+    cur = await conn.cursor()
+    try:
         await cur.execute(fetch_query, (batch_size,))
         rows = await cur.fetchall()
 
@@ -189,6 +202,11 @@ async def backfill_batch_with_attachments(
         await conn.commit()
 
         return len(updates)
+    except Exception:
+        await conn.rollback()
+        raise
+    finally:
+        await cur.close()
 
 
 async def backfill_worker_with_attachments(

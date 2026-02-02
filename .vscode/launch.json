@@ -98,7 +98,7 @@
                 "--reembed-batch-size",
                 "1000",
                 "--in-place-batch-size",
-                "50000",
+                "5000",
                 "--workers",
                 "4"
             ],
@@ -115,7 +115,7 @@
                 "--reembed-batch-size",
                 "1000",
                 "--in-place-batch-size",
-                "50000",
+                "5000",
                 "--workers",
                 "4",
                 "--use-dummy-embeddings"
