@@ -112,7 +112,7 @@ async def backfill_batch(
             UPDATE slack.message_vanilla
             SET
                 searchable_content = %s,
-                embedding = COALESCE(%s, embedding)
+                embedding = COALESCE((%s)::text::vector(1536), embedding)
             WHERE ts = to_timestamp(%s) AND channel_id = %s
         """
 
