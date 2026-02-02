@@ -104,7 +104,7 @@ async def backfill_batch(
                 f"(out of {len(messages)} total)"
             )
             await add_message_embeddings(
-                messages_to_embed, use_dummy_embeddings=use_dummy_embeddings
+                messages_to_embed, use_dummy_embeddings=1.0 if use_dummy_embeddings else None
             )
 
         # Update the database

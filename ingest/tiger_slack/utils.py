@@ -121,7 +121,7 @@ def parse_since_flag(since_str: str) -> date:
 # Fallback: attachment[].fallback
 def add_message_searchable_content(message: dict[str, Any]) -> None:
     message[SEARCH_CONTENT_FIELD] = message.get("text", "")
-    attachments = message.get("attachments", [])
+    attachments = message.get("attachments", []) or []
 
     for index, attachment in enumerate(attachments):
         message[SEARCH_CONTENT_FIELD] += f"\n\nAttachment {index + 1}"
@@ -150,7 +150,8 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
 # 2. create an embedding of the value from step 1
 async def add_message_embeddings(
     messages: list[dict[str, Any]] | dict[str, Any],
-    use_dummy_embeddings=False,  # adding this here to save tokens when debugging :)
+    field_to_embed: str = SEARCH_CONTENT_FIELD,  # field to read content from for embedding
+    use_dummy_embeddings: float | None = None,  # if set, use this value for dummy embeddings instead of calling API
 ) -> None:
     messages = [messages] if not isinstance(messages, list) else messages
 
@@ -162,19 +163,19 @@ async def add_message_embeddings(
     index_map: Sequence[int] = []
 
     for index, message in enumerate(messages):
-        searchable_content = message.get(SEARCH_CONTENT_FIELD)
-        if not searchable_content:
+        content = message.get(field_to_embed)
+        if not content:
             continue
 
-        text_to_embed.append(searchable_content)
+        text_to_embed.append(content)
         index_map.append(index)
 
     if not text_to_embed:
         return
     try:
         embeddings = None
-        if use_dummy_embeddings:
-            embeddings = [[0.0] * 1536 for _ in range(len(text_to_embed))]
+        if use_dummy_embeddings is not None:
+            embeddings = [[use_dummy_embeddings] * 1536 for _ in range(len(text_to_embed))]
         else:
             result = await embedder.embed_documents(
                 text_to_embed, settings={"dimensions": 1536}
