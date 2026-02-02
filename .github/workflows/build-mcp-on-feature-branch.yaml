@@ -8,7 +8,7 @@ on:
       - .github/workflows/*mcp*
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: non-prod
     steps:
       - name: Dispatch Workflow
         uses: timescale/workflow-dispatch-action@main
