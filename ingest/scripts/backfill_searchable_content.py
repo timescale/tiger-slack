@@ -2,12 +2,18 @@
 """
 Backfill searchable_content field and re-embed messages with attachments.
 
-This script:
-1. Finds rows in slack.message_vanilla where searchable_content IS NULL
-2. Reads the message data (text, attachments)
-3. Generates searchable_content using add_message_searchable_content()
-4. Re-embeds messages that have attachments (since existing embeddings are text-only)
-5. Updates the rows with new searchable_content and embedding
+This script uses a two-phase approach for optimal performance:
+
+PHASE 1: Rows WITHOUT attachments (fast path)
+- Uses pure SQL UPDATE to set searchable_content = text
+- No client-side processing or API calls needed
+- Processes thousands of rows per second
+
+PHASE 2: Rows WITH attachments (slow path)
+- Fetches rows to client
+- Generates searchable_content (text + attachment metadata)
+- Re-embeds using OpenAI API (since existing embeddings are text-only)
+- Updates rows with new searchable_content and embedding
 
 The script is naturally resumable - if interrupted, just run it again and it will
 continue from where it left off (processing only rows where searchable_content IS NULL).
@@ -44,23 +50,63 @@ async def get_total_count(conn: AsyncConnection) -> int:
         return result[0] if result else 0
 
 
-async def backfill_batch(
+async def get_count_without_attachments(conn: AsyncConnection) -> int:
+    """Get count of rows without attachments that need backfilling."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM slack.message_vanilla
+            WHERE searchable_content IS NULL
+              AND (attachments IS NULL OR jsonb_array_length(attachments) = 0)
+            """
+        )
+        result = await cur.fetchone()
+        return result[0] if result else 0
+
+
+async def backfill_without_attachments(conn: AsyncConnection, batch_size: int) -> int:
+    """
+    Backfill rows without attachments by setting searchable_content = text.
+    This is done entirely in SQL for maximum performance.
+    Returns number of rows updated.
+    """
+    async with conn.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE slack.message_vanilla
+            SET searchable_content = text
+            WHERE (ts, channel_id) IN (
+                SELECT ts, channel_id
+                FROM slack.message_vanilla
+                WHERE searchable_content IS NULL
+                  AND (attachments IS NULL OR jsonb_array_length(attachments) = 0)
+                ORDER BY channel_id, ts
+                LIMIT %s
+            )
+            """,
+            (batch_size,),
+        )
+        rows_updated = cur.rowcount or 0
+        await conn.commit()
+        return rows_updated
+
+
+async def backfill_batch_with_attachments(
     conn: AsyncConnection,
     batch_size: int,
     use_dummy_embeddings: bool = False,
 ) -> int:
     """
-    Backfill a single batch of rows. Returns number of rows updated.
+    Backfill a single batch of rows WITH attachments. Returns number of rows updated.
 
     This function:
-    1. Selects rows where searchable_content IS NULL (no OFFSET needed - as we update,
-       rows no longer match the WHERE clause)
+    1. Selects rows where searchable_content IS NULL AND attachments exist
     2. Generates searchable_content for each message
-    3. Re-embeds messages that have attachments
+    3. Re-embeds messages (since existing embeddings are text-only)
     4. Updates the database
     """
-    # Fetch a batch of messages that need backfilling
-    # No OFFSET needed - updated rows won't match WHERE clause on next iteration
+    # Fetch a batch of messages with attachments that need backfilling
     fetch_query = """
         SELECT
             ts,
@@ -69,6 +115,8 @@ async def backfill_batch(
             attachments
         FROM slack.message_vanilla
         WHERE searchable_content IS NULL
+          AND attachments IS NOT NULL
+          AND jsonb_array_length(attachments) > 0
         ORDER BY channel_id, ts
         LIMIT %s
     """
@@ -146,61 +194,105 @@ async def run_backfill(
     conn = await AsyncConnection.connect()
 
     try:
-        # Get initial count
+        # Get initial counts
         total_count = await get_total_count(conn)
-        click.echo(f"Total rows to backfill: {total_count:,}")
-        click.echo(f"Batch size: {batch_size:,}")
+        count_without_attachments = await get_count_without_attachments(conn)
+        count_with_attachments = total_count - count_without_attachments
+
+        click.echo("="*60)
+        click.echo("Backfill Summary:")
+        click.echo(f"  Total rows to backfill: {total_count:,}")
+        click.echo(f"  Without attachments: {count_without_attachments:,} (fast path)")
+        click.echo(f"  With attachments: {count_with_attachments:,} (requires re-embedding)")
+        click.echo(f"  Batch size: {batch_size:,}")
         if use_dummy_embeddings:
-            click.echo("Using dummy embeddings (not calling OpenAI API)")
+            click.echo("  Using dummy embeddings (not calling OpenAI API)")
+        click.echo("="*60)
 
         if total_count == 0:
             click.echo("No rows to backfill!")
             return
 
-        batch_num = 1
         total_rows_updated = 0
         start_time_overall = datetime.now()
 
-        while True:
-            # Re-check count before each batch
-            remaining_count = await get_total_count(conn)
+        # Phase 1: Fast path for rows without attachments
+        if count_without_attachments > 0:
+            click.echo("\n" + "="*60)
+            click.echo("PHASE 1: Backfilling rows WITHOUT attachments (SQL only)")
+            click.echo("="*60)
 
-            if remaining_count == 0:
-                elapsed_overall = (datetime.now() - start_time_overall).total_seconds()
-                click.echo("\n" + "="*60)
-                click.echo("Backfill complete!")
-                click.echo(f"Total rows updated: {total_rows_updated:,}")
-                click.echo(f"Total time: {elapsed_overall:.2f}s")
-                click.echo(f"Average: {total_rows_updated/elapsed_overall:.0f} rows/sec")
-                click.echo("="*60)
-                break
+            batch_num = 1
+            while True:
+                remaining = await get_count_without_attachments(conn)
+                if remaining == 0:
+                    break
 
-            start_time = datetime.now()
+                start_time = datetime.now()
+                click.echo(
+                    f"\nBatch {batch_num}: Processing up to {batch_size:,} rows "
+                    f"({remaining:,} remaining)..."
+                )
 
-            click.echo(
-                f"\nBatch {batch_num}: Processing up to {batch_size:,} rows "
-                f"({remaining_count:,} remaining)..."
-            )
+                rows_updated = await backfill_without_attachments(conn, batch_size)
+                elapsed = (datetime.now() - start_time).total_seconds()
+                total_rows_updated += rows_updated
 
-            rows_updated = await backfill_batch(
-                conn, batch_size, use_dummy_embeddings
-            )
+                rows_per_sec = rows_updated / elapsed if elapsed > 0 else 0
+                click.echo(
+                    f"✓ Updated {rows_updated:,} rows in {elapsed:.2f}s "
+                    f"({rows_per_sec:.0f} rows/sec)"
+                )
 
-            elapsed = (datetime.now() - start_time).total_seconds()
-            total_rows_updated += rows_updated
+                batch_num += 1
+                time.sleep(1)  # Shorter sleep for fast path
 
-            rows_per_sec = rows_updated / elapsed if elapsed > 0 else 0
+            click.echo(f"\n✓ Phase 1 complete: {total_rows_updated:,} rows updated")
 
-            click.echo(
-                f"✓ Updated {rows_updated:,} rows in {elapsed:.2f}s "
-                f"({rows_per_sec:.0f} rows/sec)"
-            )
-            click.echo(f"Total updated so far: {total_rows_updated:,}")
+        # Phase 2: Slow path for rows with attachments (requires re-embedding)
+        remaining_with_attachments = await get_total_count(conn)
+        if remaining_with_attachments > 0:
+            click.echo("\n" + "="*60)
+            click.echo("PHASE 2: Backfilling rows WITH attachments (requires re-embedding)")
+            click.echo("="*60)
 
-            batch_num += 1
+            batch_num = 1
+            while True:
+                remaining = await get_total_count(conn)
+                if remaining == 0:
+                    break
 
-            # Sleep between batches to avoid overloading the database
-            time.sleep(5)
+                start_time = datetime.now()
+                click.echo(
+                    f"\nBatch {batch_num}: Processing up to {batch_size:,} rows "
+                    f"({remaining:,} remaining)..."
+                )
+
+                rows_updated = await backfill_batch_with_attachments(
+                    conn, batch_size, use_dummy_embeddings
+                )
+
+                elapsed = (datetime.now() - start_time).total_seconds()
+                total_rows_updated += rows_updated
+
+                rows_per_sec = rows_updated / elapsed if elapsed > 0 else 0
+                click.echo(
+                    f"✓ Updated {rows_updated:,} rows in {elapsed:.2f}s "
+                    f"({rows_per_sec:.0f} rows/sec)"
+                )
+
+                batch_num += 1
+                time.sleep(5)  # Longer sleep for slow path with API calls
+
+        # Final summary
+        elapsed_overall = (datetime.now() - start_time_overall).total_seconds()
+        click.echo("\n" + "="*60)
+        click.echo("Backfill complete!")
+        click.echo(f"Total rows updated: {total_rows_updated:,}")
+        click.echo(f"Total time: {elapsed_overall:.2f}s")
+        if elapsed_overall > 0:
+            click.echo(f"Average: {total_rows_updated/elapsed_overall:.0f} rows/sec")
+        click.echo("="*60)
 
     finally:
         await conn.close()
