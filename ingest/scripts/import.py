@@ -276,7 +276,7 @@ async def process_file_worker(
                     with logfire.span(
                         "Embedding messages", num_messages=len(current_message_batch)
                     ):
-                        await add_message_embeddings(current_message_batch, 1.0)
+                        await add_message_embeddings(current_message_batch)
                     with logfire.span(
                         "loading_messages_batch",
                         worker_id=worker_id,
