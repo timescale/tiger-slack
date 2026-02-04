@@ -5,4 +5,4 @@
 drop index if exists slack.message_text_bm25_idx;
 drop index if exists slack.message_text_vector_idx;
 
-alter table slack.message drop column embedding;
+alter table slack.message drop column if exists embedding;
