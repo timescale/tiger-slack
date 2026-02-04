@@ -72,9 +72,7 @@ export const searchFactory: ApiFactory<
   config: {
     title: 'Search Slack Messages',
     description:
-      'Search across Slack messages using semantic (vector) search. Returns messages organized by channel and conversation with optional filtering by users, channels, and time range.',
-    // description:
-    // 	"Hybrid search across Slack messages using semantic (vector) and keyword (BM25) search with configurable weighting. Returns messages organized by channel and conversation with optional filtering by users, channels, and time range.",
+      'Hybrid search across Slack messages using semantic (vector) and keyword (BM25) search with configurable weighting. Returns messages organized by channel and conversation with optional filtering by users, channels, and time range.',
     inputSchema,
     outputSchema,
   },
@@ -132,7 +130,7 @@ export const searchFactory: ApiFactory<
           AND (($2::TEXT[] IS NULL) OR (channel_id = ANY($2)))
           AND (($3::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $3::TIMESTAMPTZ)
           AND ($4::TIMESTAMPTZ IS NULL OR ts <= $4::TIMESTAMPTZ)
-        ORDER BY ${type === 'semantic' ? `embedding <=> $5::vector(1536)` : `text <@> to_bm25query($5::text, 'slack.message_vanilla__bm25_idx')`}
+        ORDER BY ${type === 'semantic' ? `embedding <=> $5::vector(1536)` : `text <@> to_bm25query($5::text, 'slack.message_vanilla_searchable_content_bm25_idx')`}
         LIMIT $6`,
         [
           userIdsToFilterOn,
