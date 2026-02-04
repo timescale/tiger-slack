@@ -3,8 +3,8 @@
 	"[typescript]": {
 		"editor.defaultFormatter": "biomejs.biome"
 	},
-	"[json]": {
-		"editor.defaultFormatter": "biomejs.biome"
+	"[jsonc]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
 	},
 	"[python]": {
 		"editor.defaultFormatter": "charliermarsh.ruff",
