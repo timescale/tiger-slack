@@ -132,7 +132,7 @@ export const searchFactory: ApiFactory<
           AND (($2::TEXT[] IS NULL) OR (channel_id = ANY($2)))
           AND (($3::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $3::TIMESTAMPTZ)
           AND ($4::TIMESTAMPTZ IS NULL OR ts <= $4::TIMESTAMPTZ)
-        ORDER BY ${type === 'semantic' ? `embedding <=> $5::vector(1536)` : `text <@> to_bm25query($5::text, 'slack.message_vanilla_text_bm25_idx')`}
+        ORDER BY ${type === 'semantic' ? `embedding <=> $5::vector(1536)` : `text <@> to_bm25query($5::text, 'slack.message_vanilla__bm25_idx')`}
         LIMIT $6`,
         [
           userIdsToFilterOn,
