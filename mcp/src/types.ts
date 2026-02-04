@@ -66,6 +66,12 @@ export const zFile = z
   })
   .describe('A file associated with a Slack message');
 
+export const zAttachment = z.object({
+  title: z.string(),
+  text: z.string(),
+  fallback: z.string(),
+});
+
 export const zMessage = z.object({
   ts: z.string().describe('The timestamp of the message'),
   channel_id: z
@@ -73,7 +79,8 @@ export const zMessage = z.object({
     .describe(
       'The Slack channel ID the message was posted in (e.g. C123ABC456)',
     ),
-  files: z.array(zFile).optional().nullable(),
+  attachments: z.array(zAttachment).nullish(),
+  files: z.array(zFile).optional().nullish(),
   text: z.string().describe('The text content of the message'),
   user_id: z
     .string()

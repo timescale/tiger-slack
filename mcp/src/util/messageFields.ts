@@ -1,11 +1,13 @@
 export function getMessageFields({
   coerceType = true,
-  messageTableAlias,
+  includeAttachments = true,
   includeFiles,
+  messageTableAlias,
 }: {
   coerceType?: boolean;
-  messageTableAlias?: string;
+  includeAttachments?: boolean;
   includeFiles?: boolean;
+  messageTableAlias?: string;
 }): string | string[] {
   const res = [
     `ts${coerceType ? '::text' : ''}`,
@@ -13,6 +15,9 @@ export function getMessageFields({
     'text',
     'user_id',
     `thread_ts${coerceType ? '::text' : ''}`,
+    ...(includeAttachments
+      ? [`attachments${coerceType ? '::jsonb' : ''}`]
+      : []),
     ...(includeFiles ? [`files${coerceType ? '::jsonb' : ''}`] : []),
   ].map((x) => `${messageTableAlias ? `${messageTableAlias}.${x}` : x}`);
 

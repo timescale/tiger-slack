@@ -13,5 +13,5 @@ export const apiFactories = [
   getConversationsWithUserFactory,
   getThreadMessagesFactory,
   getUsersFactory,
-  // searchFactory,
+  searchFactory,
 ] as const;
