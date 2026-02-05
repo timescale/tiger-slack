@@ -1,3 +1,4 @@
+import inspect
 import logging
 import re
 from collections.abc import Sequence
@@ -9,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
 from pydantic_ai import Embedder
-from slack_sdk.models.attachments import Attachment, BlockAttachment
+from slack_sdk.models.attachments import Attachment, AttachmentField, BlockAttachment
 from slack_sdk.models.blocks import (
     Block,
     SectionBlock,
@@ -118,26 +119,40 @@ def parse_since_flag(since_str: str) -> date:
     )
 
 
-# this returns the correct slack_sdk Attachment type
+# slack_sdk is apparently pretty strict about what can be passed into the
+# types, so this is a helper to only pass in valid params
+def safely_instantiate_class(params: dict[str, Any], type: TypeVar) -> TypeVar:
+    valid_params = set(inspect.signature(type.__init__).parameters.keys())
+    safe_params = {k: v for k, v in params.items() if k in valid_params}
+
+    return type(**safe_params)
+
+
+# this returns the correct slack_sdk Attachment type instance
 def get_attachment(attachment: dict[str, Any]) -> Attachment | BlockAttachment:
     blocks = Block.parse_all(attachment.get("blocks"))
 
     if blocks:
         attachment["blocks"] = blocks
 
-    attachment.pop("id", None)
-    attachment.pop("mrkdwn_in", None)
-    # I am not a fan of how slack_sdk structured BlockAttachment vs Attachment, but c'est la vie
-    return BlockAttachment(**attachment) if blocks else Attachment(**attachment)
+    # slack_sdk is apparently pretty strict about what can be passed into these
+    # so we will only pass in valid parameters
+    cls = BlockAttachment if blocks else Attachment
+
+    return safely_instantiate_class(attachment, cls)
 
 
-def get_text_from_text_object(text_object: TextObject | None) -> str | None:
+def get_text_from_text_object(
+    text_object: AttachmentField | TextObject | None,
+) -> str | None:
     if not text_object:
         return None
 
     # this will also handle MarkdownTextObject as it extends TextObject
     if isinstance(text_object, TextObject):
         return text_object.text
+    elif isinstance(text_object, AttachmentField):
+        return f"{text_object.title}\n{text_object.value}"
     elif isinstance(text_object, str):
         return text_object
     return ""
@@ -174,6 +189,7 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
             if attachment.text:
                 searchable_content += f"\n{attachment.text}"
             for field in attachment.fields:
+                field = safely_instantiate_class(field, AttachmentField)
                 searchable_content += f"\n{get_text_from_text_object(field)}"
 
         if isinstance(attachment, BlockAttachment):
