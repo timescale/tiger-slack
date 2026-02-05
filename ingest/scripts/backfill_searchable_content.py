@@ -296,7 +296,7 @@ async def run_backfill(
     start_time_overall = datetime.now()
 
     # Phase 1: Fast path for rows without attachments
-    if count_without_attachments > 0 and False:
+    if count_without_attachments > 0:
         click.echo("\n" + "=" * 60)
         click.echo("PHASE 1: Backfilling rows WITHOUT attachments (SQL only)")
         click.echo("=" * 60)
