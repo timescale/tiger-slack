@@ -12,7 +12,6 @@ from pydantic_ai import Embedder
 from slack_sdk.models.attachments import Attachment, BlockAttachment
 from slack_sdk.models.blocks import (
     Block,
-    MarkdownTextObject,
     SectionBlock,
     TextObject,
 )
@@ -135,12 +134,13 @@ def get_attachment(attachment: dict[str, Any]) -> Attachment | BlockAttachment:
 def get_text_from_text_object(text_object: TextObject | None) -> str | None:
     if not text_object:
         return None
-    if isinstance(text_object, MarkdownTextObject):
-        return f"\nMarkdown: {text_object.text}"
-    elif isinstance(text_object, TextObject):
-        return f"\nText: {text_object.text}"
+
+    # this will also handle MarkdownTextObject as it extends TextObject
+    if isinstance(text_object, TextObject):
+        return text_object.text
     elif isinstance(text_object, str):
-        return f"\nText: {text_object}"
+        return text_object
+    return ""
 
 
 # this will add searchable content to a message
@@ -164,39 +164,32 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
         searchable_content += f"\n\nAttachment {index + 1}"
 
         if attachment.title:
-            searchable_content += f"\nTitle: {attachment.title}"
+            searchable_content += f"\n{attachment.title}"
         if attachment.text:
-            searchable_content += f"\nText: {attachment.text}"
+            searchable_content += f"\n{attachment.text}"
 
         if isinstance(attachment, Attachment):
             if attachment.title:
-                searchable_content += f"\nTitle: {attachment.title}"
+                searchable_content += f"\n{attachment.title}"
             if attachment.text:
-                searchable_content += f"\nText: {attachment.text}"
-            # for field in
-
-        # "blocks": [
-        #   {
-        #     "text": {
-        #       "text": "*<https://rootly.com/account/alerts/8nW5mn|#8nW5mn: [prod] [us-east-1] [] [UnavailableDeployment10Min] [High]>*",
-        #       "type": "mrkdwn",
-        #       "verbatim": false
-        #     },
-        #     "type": "section",
-        #     "block_id": "c61Va"
-        #   },
+                searchable_content += f"\n{attachment.text}"
+            for field in attachment.fields:
+                searchable_content += f"\n{get_text_from_text_object(field)}"
 
         if isinstance(attachment, BlockAttachment):
             for block in attachment.blocks:
                 if isinstance(block, SectionBlock):
-                    searchable_content += "\nSection:"
+                    searchable_content += "\n"
                     if block.text:
-                        searchable_content += get_text_from_text_object(block.text)
+                        searchable_content += (
+                            f"\n{get_text_from_text_object(block.text)}"
+                        )
                     for field in block.fields:
-                        searchable_content += get_text_from_text_object(field)
+                        searchable_content += f"\n{get_text_from_text_object(field)}"
+                    searchable_content += "\n"
 
         if not searchable_content and attachment.fallback:
-            searchable_content += f"\nFallback: {attachment.fallback}"
+            searchable_content += f"\n{attachment.fallback}"
 
     message[SEARCH_CONTENT_FIELD] = searchable_content if searchable_content else None
 
