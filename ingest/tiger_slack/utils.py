@@ -135,11 +135,9 @@ def get_attachment(attachment: dict[str, Any]) -> Attachment | BlockAttachment:
     if blocks:
         attachment["blocks"] = blocks
 
-    # slack_sdk is apparently pretty strict about what can be passed into these
-    # so we will only pass in valid parameters
-    cls = BlockAttachment if blocks else Attachment
-
-    return safely_instantiate_class(attachment, cls)
+    return safely_instantiate_class(
+        attachment, BlockAttachment if blocks else Attachment
+    )
 
 
 def get_text_from_text_object(
