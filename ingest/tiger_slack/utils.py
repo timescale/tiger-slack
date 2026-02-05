@@ -123,17 +123,17 @@ def parse_since_flag(since_str: str) -> date:
 # types, so this is a helper to only pass in valid params
 def safely_instantiate_class(params: dict[str, Any], type: TypeVar) -> TypeVar:
     valid_params = set(inspect.signature(type.__init__).parameters.keys())
-    safe_params = {k: v for k, v in params.items() if k in valid_params}
+    # Filter out invalid params and add missing params with None values
+    safe_params = {k: params.get(k) for k in valid_params if k != "self"}
 
     return type(**safe_params)
 
 
 # this returns the correct slack_sdk Attachment type instance
-def get_attachment(attachment: dict[str, Any]) -> Attachment | BlockAttachment:
+def get_attachment(attachment: dict[str, Any]) -> Attachment | BlockAttachment | None:
     blocks = Block.parse_all(attachment.get("blocks"))
 
     attachment_data = {**attachment, "blocks": blocks} if blocks else attachment
-
     return safely_instantiate_class(
         attachment_data, BlockAttachment if blocks else Attachment
     )
@@ -197,8 +197,15 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
                             searchable_content += (
                                 f"\n{get_text_from_text_object(block.text)}"
                             )
-                        for raw_field in block.fields:
-                            field = safely_instantiate_class(raw_field, AttachmentField)
+                        for field in block.fields:
+                            if (
+                                not isinstance(raw_field, TextObject)
+                                and raw_field["value"]
+                                and raw_field["title"]
+                            ):
+                                field = safely_instantiate_class(
+                                    raw_field, AttachmentField
+                                )
                             searchable_content += (
                                 f"\n{get_text_from_text_object(field)}"
                             )
