@@ -167,47 +167,52 @@ def get_text_from_text_object(
 # Fallback: attachment[].fallback
 def add_message_searchable_content(message: dict[str, Any]) -> None:
     searchable_content = message.get("text", "")
+    try:
+        # convert list of dicts into actual slack_sdk attachment objects
+        attachments = list(map(get_attachment, message.get("attachments", []) or []))
 
-    # convert list of dicts into actual slack_sdk attachment objects
-    attachments = list(map(get_attachment, message.get("attachments", []) or []))
+        # let's build up the searchable content
+        # there are three ways that our attachments
+        # can have text: via title/text, via fields, via blocks
+        # and all of them have a fallback
+        for index, attachment in enumerate(attachments):
+            searchable_content += f"\n\nAttachment {index + 1}"
 
-    # let's build up the searchable content
-    # there are three ways that our attachments
-    # can have text: via title/text, via fields, via blocks
-    # and all of them have a fallback
-    for index, attachment in enumerate(attachments):
-        searchable_content += f"\n\nAttachment {index + 1}"
-
-        if attachment.title:
-            searchable_content += f"\n{attachment.title}"
-        if attachment.text:
-            searchable_content += f"\n{attachment.text}"
-
-        if isinstance(attachment, Attachment):
             if attachment.title:
                 searchable_content += f"\n{attachment.title}"
             if attachment.text:
                 searchable_content += f"\n{attachment.text}"
-            for raw_field in attachment.fields:
-                field = safely_instantiate_class(raw_field, AttachmentField)
-                searchable_content += f"\n{get_text_from_text_object(field)}"
 
-        if isinstance(attachment, BlockAttachment):
-            for block in attachment.blocks:
-                if isinstance(block, SectionBlock):
-                    searchable_content += "\n"
-                    if block.text:
-                        searchable_content += (
-                            f"\n{get_text_from_text_object(block.text)}"
-                        )
-                    for raw_field in block.fields:
-                        field = safely_instantiate_class(raw_field, AttachmentField)
-                        searchable_content += f"\n{get_text_from_text_object(field)}"
-                    searchable_content += "\n"
+            if isinstance(attachment, Attachment):
+                if attachment.title:
+                    searchable_content += f"\n{attachment.title}"
+                if attachment.text:
+                    searchable_content += f"\n{attachment.text}"
+                for raw_field in attachment.fields:
+                    field = safely_instantiate_class(raw_field, AttachmentField)
+                    searchable_content += f"\n{get_text_from_text_object(field)}"
 
-        if not searchable_content and attachment.fallback:
-            searchable_content += f"\n{attachment.fallback}"
+            if isinstance(attachment, BlockAttachment):
+                for block in attachment.blocks:
+                    if isinstance(block, SectionBlock):
+                        searchable_content += "\n"
+                        if block.text:
+                            searchable_content += (
+                                f"\n{get_text_from_text_object(block.text)}"
+                            )
+                        for raw_field in block.fields:
+                            field = safely_instantiate_class(raw_field, AttachmentField)
+                            searchable_content += (
+                                f"\n{get_text_from_text_object(field)}"
+                            )
+                        searchable_content += "\n"
 
+            if not searchable_content and attachment.fallback:
+                searchable_content += f"\n{attachment.fallback}"
+    except Exception:
+        logfire.exception(
+            f"An error occurred while creating {SEARCH_CONTENT_FIELD} for ts: {message.get('ts', '')}, channel: {message.get('channel', '')}, channel_id: {message.get('channel_id', '')}"
+        )
     message[SEARCH_CONTENT_FIELD] = searchable_content if searchable_content else None
 
 
