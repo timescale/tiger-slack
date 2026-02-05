@@ -188,8 +188,8 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
                 searchable_content += f"\n{attachment.title}"
             if attachment.text:
                 searchable_content += f"\n{attachment.text}"
-            for field in attachment.fields:
-                field = safely_instantiate_class(field, AttachmentField)
+            for raw_field in attachment.fields:
+                field = safely_instantiate_class(raw_field, AttachmentField)
                 searchable_content += f"\n{get_text_from_text_object(field)}"
 
         if isinstance(attachment, BlockAttachment):
@@ -200,7 +200,8 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
                         searchable_content += (
                             f"\n{get_text_from_text_object(block.text)}"
                         )
-                    for field in block.fields:
+                    for raw_field in block.fields:
+                        field = safely_instantiate_class(raw_field, AttachmentField)
                         searchable_content += f"\n{get_text_from_text_object(field)}"
                     searchable_content += "\n"
 
