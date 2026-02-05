@@ -132,11 +132,10 @@ def safely_instantiate_class(params: dict[str, Any], type: TypeVar) -> TypeVar:
 def get_attachment(attachment: dict[str, Any]) -> Attachment | BlockAttachment:
     blocks = Block.parse_all(attachment.get("blocks"))
 
-    if blocks:
-        attachment["blocks"] = blocks
+    attachment_data = {**attachment, "blocks": blocks} if blocks else attachment
 
     return safely_instantiate_class(
-        attachment, BlockAttachment if blocks else Attachment
+        attachment_data, BlockAttachment if blocks else Attachment
     )
 
 
