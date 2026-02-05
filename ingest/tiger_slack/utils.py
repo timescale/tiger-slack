@@ -9,6 +9,13 @@ from dateutil.relativedelta import relativedelta
 from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
 from pydantic_ai import Embedder
+from slack_sdk.models.attachments import Attachment, BlockAttachment
+from slack_sdk.models.blocks import (
+    Block,
+    MarkdownTextObject,
+    SectionBlock,
+    TextObject,
+)
 
 from tiger_slack.constants import SEARCH_CONTENT_FIELD
 
@@ -112,6 +119,30 @@ def parse_since_flag(since_str: str) -> date:
     )
 
 
+# this returns the correct slack_sdk Attachment type
+def get_attachment(attachment: dict[str, Any]) -> Attachment | BlockAttachment:
+    blocks = Block.parse_all(attachment.get("blocks"))
+
+    if blocks:
+        attachment["blocks"] = blocks
+
+    attachment.pop("id", None)
+    attachment.pop("mrkdwn_in", None)
+    # I am not a fan of how slack_sdk structured BlockAttachment vs Attachment, but c'est la vie
+    return BlockAttachment(**attachment) if blocks else Attachment(**attachment)
+
+
+def get_text_from_text_object(text_object: TextObject | None) -> str | None:
+    if not text_object:
+        return None
+    if isinstance(text_object, MarkdownTextObject):
+        return f"\nMarkdown: {text_object.text}"
+    elif isinstance(text_object, TextObject):
+        return f"\nText: {text_object.text}"
+    elif isinstance(text_object, str):
+        return f"\nText: {text_object}"
+
+
 # this will add searchable content to a message
 # It will be formatted like so:
 # Text: message.text
@@ -120,29 +151,54 @@ def parse_since_flag(since_str: str) -> date:
 # Text: attachment[].text
 # Fallback: attachment[].fallback
 def add_message_searchable_content(message: dict[str, Any]) -> None:
-    message[SEARCH_CONTENT_FIELD] = message.get("text", "")
-    attachments = message.get("attachments", []) or []
+    searchable_content = message.get("text", "")
 
+    # convert list of dicts into actual slack_sdk attachment objects
+    attachments = list(map(get_attachment, message.get("attachments", []) or []))
+
+    # let's build up the searchable content
+    # there are three ways that our attachments
+    # can have text: via title/text, via fields, via blocks
+    # and all of them have a fallback
     for index, attachment in enumerate(attachments):
-        message[SEARCH_CONTENT_FIELD] += f"\n\nAttachment {index + 1}"
+        searchable_content += f"\n\nAttachment {index + 1}"
 
-        attachment_title = attachment.get("title")
-        attachment_text = attachment.get("text")
-        attachment_fallback = attachment.get("fallback")
+        if attachment.title:
+            searchable_content += f"\nTitle: {attachment.title}"
+        if attachment.text:
+            searchable_content += f"\nText: {attachment.text}"
 
-        if attachment_title:
-            message[SEARCH_CONTENT_FIELD] += f"\nTitle: {attachment_title}"
-        if attachment_text:
-            message[SEARCH_CONTENT_FIELD] += f"\nText: {attachment_text}"
-        if (
-            attachment_fallback
-            and attachment_fallback != attachment_title
-            and attachment_fallback != attachment_text
-        ):
-            message[SEARCH_CONTENT_FIELD] += f"\nFallback: {attachment_fallback}"
+        if isinstance(attachment, Attachment):
+            if attachment.title:
+                searchable_content += f"\nTitle: {attachment.title}"
+            if attachment.text:
+                searchable_content += f"\nText: {attachment.text}"
+            # for field in
 
-    if not message[SEARCH_CONTENT_FIELD]:
-        message[SEARCH_CONTENT_FIELD] = None
+        # "blocks": [
+        #   {
+        #     "text": {
+        #       "text": "*<https://rootly.com/account/alerts/8nW5mn|#8nW5mn: [prod] [us-east-1] [] [UnavailableDeployment10Min] [High]>*",
+        #       "type": "mrkdwn",
+        #       "verbatim": false
+        #     },
+        #     "type": "section",
+        #     "block_id": "c61Va"
+        #   },
+
+        if isinstance(attachment, BlockAttachment):
+            for block in attachment.blocks:
+                if isinstance(block, SectionBlock):
+                    searchable_content += "\nSection:"
+                    if block.text:
+                        searchable_content += get_text_from_text_object(block.text)
+                    for field in block.fields:
+                        searchable_content += get_text_from_text_object(field)
+
+        if not searchable_content and attachment.fallback:
+            searchable_content += f"\nFallback: {attachment.fallback}"
+
+    message[SEARCH_CONTENT_FIELD] = searchable_content if searchable_content else None
 
 
 # this method does two things
@@ -151,7 +207,8 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
 async def add_message_embeddings(
     messages: list[dict[str, Any]] | dict[str, Any],
     field_to_embed: str = SEARCH_CONTENT_FIELD,  # field to read content from for embedding
-    use_dummy_embeddings: float | None = None,  # if set, use this value for dummy embeddings instead of calling API
+    use_dummy_embeddings: float
+    | None = None,  # if set, use this value for dummy embeddings instead of calling API
 ) -> None:
     messages = [messages] if not isinstance(messages, list) else messages
 
@@ -175,7 +232,9 @@ async def add_message_embeddings(
     try:
         embeddings = None
         if use_dummy_embeddings is not None:
-            embeddings = [[use_dummy_embeddings] * 1536 for _ in range(len(text_to_embed))]
+            embeddings = [
+                [use_dummy_embeddings] * 1536 for _ in range(len(text_to_embed))
+            ]
         else:
             result = await embedder.embed_documents(
                 text_to_embed, settings={"dimensions": 1536}
