@@ -197,7 +197,7 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
                             searchable_content += (
                                 f"\n{get_text_from_text_object(block.text)}"
                             )
-                        for field in block.fields:
+                        for raw_field in block.fields:
                             if (
                                 not isinstance(raw_field, TextObject)
                                 and raw_field["value"]
