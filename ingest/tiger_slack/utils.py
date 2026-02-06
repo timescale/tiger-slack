@@ -18,7 +18,11 @@ from slack_sdk.models.blocks import (
     TextObject,
 )
 
-from tiger_slack.constants import MAX_TOKENS_PER_EMBEDDING_REQUEST, SEARCH_CONTENT_FIELD
+from tiger_slack.constants import (
+    MAX_TOKENS_PER_DOCUMENT,
+    MAX_TOKENS_PER_EMBEDDING_REQUEST,
+    SEARCH_CONTENT_FIELD,
+)
 
 T = TypeVar("T")
 
@@ -218,7 +222,23 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
         logfire.exception(
             f"An error occurred while creating {SEARCH_CONTENT_FIELD} for ts: {message.get('ts', '')}, channel: {message.get('channel', '')}, channel_id: {message.get('channel_id', '')}"
         )
-    message[SEARCH_CONTENT_FIELD] = searchable_content if searchable_content else None
+
+    if not searchable_content:
+        message[SEARCH_CONTENT_FIELD] = None
+        return
+
+    # we also have a maximum token count per input message
+    # so we tokenize the string, then truncate the token array
+    # if the array length exceeds the max
+    tokens = token_encoder.encode(searchable_content)
+
+    if len(tokens) <= MAX_TOKENS_PER_DOCUMENT:
+        message[SEARCH_CONTENT_FIELD] = searchable_content
+        return
+
+    truncated_tokens = tokens[0 : MAX_TOKENS_PER_DOCUMENT - 1]
+    truncated_text = token_encoder.decode(truncated_tokens)
+    message[SEARCH_CONTENT_FIELD] = truncated_text
 
 
 class MockEmbedder(Embedder):
