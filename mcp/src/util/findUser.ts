@@ -5,7 +5,7 @@ export const findUser = async (
   pgPool: Pool,
   username: string,
   includeBots = true,
-): Promise<User[]> => {
+): Promise<User> => {
   const res = await pgPool.query<User>(
     /* sql */ `
 SELECT id, user_name, real_name, display_name, email
@@ -22,5 +22,27 @@ SELECT id, user_name, real_name, display_name, email
     )`,
     [username],
   );
-  return res.rows;
+
+  const users = res.rows;
+
+  if (users.length === 0) {
+    throw new Error(`No user found matching "${username}"`);
+  }
+  let [targetUser] = users;
+  if (users.length > 1) {
+    const exact = users.find((c) => c.user_name === username);
+    if (!exact) {
+      throw new Error(
+        `Multiple users found matching "${username}": ${users.map((u) => u.user_name).join(', ')}`,
+      );
+    }
+
+    targetUser = exact;
+  }
+
+  if (!targetUser?.id) {
+    throw new Error(`No user id found matching "${username}"`);
+  }
+
+  return targetUser;
 };

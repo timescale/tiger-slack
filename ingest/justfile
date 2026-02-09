@@ -22,7 +22,23 @@ jobs:
 
 # Import historical Slack export data
 import EXPORT_PATH:
-    uv run python -m tiger_slack.import {{EXPORT_PATH}}
+    uv run python scripts/import.py {{EXPORT_PATH}}
+
+# Migrate messages from one table to another
+migrate-messages DEST_TABLE BATCH_SIZE="10000":
+    uv run python scripts/migrate_messages.py --dest-table {{DEST_TABLE}} --batch-size {{BATCH_SIZE}}
+
+# Resume message migration from job file
+resume-migration JOB_FILE BATCH_SIZE="10000":
+    uv run python scripts/migrate_messages.py --resume {{JOB_FILE}} --batch-size {{BATCH_SIZE}}
+
+# Backfill searchable_content field and re-embed messages with attachments
+backfill-searchable BATCH_SIZE="1000":
+    uv run python scripts/backfill_searchable_content.py --batch-size {{BATCH_SIZE}}
+
+# Backfill with dummy embeddings (for testing, no API calls)
+backfill-searchable-dummy BATCH_SIZE="1000":
+    uv run python scripts/backfill_searchable_content.py --batch-size {{BATCH_SIZE}} --use-dummy-embeddings
 
 # Build the Docker image
 build-image TAG="tiger-slack-ingest:latest":

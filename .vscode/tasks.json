@@ -2,10 +2,10 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "type": "npm",
-      "script": "install",
+      "type": "shell",
+      "command": "bun install",
       "group": "build",
-      "label": "Tiger-Slack MCP - npm: install",
+      "label": "Tiger-Slack MCP - bun: install",
       "detail": "Install Tiger-Slack MCP server dependencies",
       "options": {
         "cwd": "${workspaceFolder}/mcp"
@@ -20,12 +20,12 @@
       }
     },
     {
-      "type": "npm",
-      "script": "build",
+      "type": "shell",
+      "command": "bun run build",
       "group": "build",
-      "label": "Tiger-Slack MCP - npm: build",
+      "label": "Tiger-Slack MCP - bun: build",
       "detail": "Build the Tiger-Slack MCP server",
-      "dependsOn": "Tiger-Slack MCP - npm: install",
+      "dependsOn": "Tiger-Slack MCP - bun: install",
       "options": {
         "cwd": "${workspaceFolder}/mcp"
       },
@@ -41,7 +41,7 @@
     {
       "label": "Tiger-Slack MCP - Build Only",
       "dependsOrder": "sequence",
-      "dependsOn": ["Tiger-Slack MCP - npm: install", "Tiger-Slack MCP - npm: build"],
+      "dependsOn": ["Tiger-Slack MCP - bun: install", "Tiger-Slack MCP - bun: build"],
       "group": "build"
     }
   ]

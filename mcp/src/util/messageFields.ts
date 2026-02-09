@@ -1,4 +1,4 @@
-export const getMessageFields = ({
+export function getMessageFields({
   coerceType = true,
   messageTableAlias,
   includeFiles,
@@ -6,14 +6,15 @@ export const getMessageFields = ({
   coerceType?: boolean;
   messageTableAlias?: string;
   includeFiles?: boolean;
-}): string =>
-  [
+}): string | string[] {
+  const res = [
     `ts${coerceType ? '::text' : ''}`,
     'channel_id',
     'text',
     'user_id',
     `thread_ts${coerceType ? '::text' : ''}`,
     ...(includeFiles ? [`files${coerceType ? '::jsonb' : ''}`] : []),
-  ]
-    .map((x) => `${messageTableAlias ? `${messageTableAlias}.${x}` : x}`)
-    .join(',');
+  ].map((x) => `${messageTableAlias ? `${messageTableAlias}.${x}` : x}`);
+
+  return res.join(',');
+}

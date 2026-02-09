@@ -45,7 +45,7 @@ The app is structured around several key modules:
 - **`main.py`**: Application entry point with service configuration, signal handling, and database connection pooling
 - **`events.py`**: Slack event handlers and database operations for real-time ingestion
 - **`jobs.py`**: Scheduled background jobs for periodic synchronization of channels and users
-- **`import.py`**: Historical data import from Slack export files
+- **`scripts/import.py`**: Historical data import from Slack export files
 - **Database Layer**: TimescaleDB with dedicated `slack` schema for optimized time-series storage
 
 ## Slack App Configuration
@@ -221,7 +221,7 @@ slack-export/
 
 ### Import Process
 
-The historical import (`import.py`) processes data in three phases:
+The historical import (`scripts/import.py`) processes data in three phases:
 
 #### 1. User Import
 - **Source**: `users.json` file in export root
@@ -261,12 +261,12 @@ The import handles complex Slack message structures:
 # Download Slack workspace export from your admin panel
 # Extract the ZIP file to a local directory
 
-# Run the import (requires PG* environment variable)
+# Run the import (requires PG* environment variables)
 cd ingest
-uv run python -m tiger_slack.import /path/to/slack-export-directory
+uv run python scripts/import.py /path/to/slack-export-directory
 
 # Example:
-uv run python -m tiger_slack.import ~/Downloads/slack-export-2024-01-15/
+uv run python scripts/import.py ~/Downloads/slack-export-2024-01-15/
 
 # Or use the just command from ingest directory:
 cd ingest && just import /path/to/slack-export-directory
@@ -300,6 +300,99 @@ Common import issues:
 - **Channel name mismatches**: Channels not in database are skipped with warnings
 - **Malformed JSON**: Individual file errors are logged but don't stop the overall import
 - **Database constraints**: Constraint violations are captured and logged for review
+
+## Utility Scripts
+
+The `scripts/` directory contains several utility scripts for data management:
+
+### `import.py` - Historical Data Import
+
+**Purpose**: Import historical Slack messages, users, and channels from Slack workspace exports.
+
+**Features**:
+- Imports users, channels, and message history from Slack export ZIP files
+- Parallel message processing with configurable worker count
+- Automatic message filtering using `slack.message_discard` patterns
+- Embedding generation for message search
+- Duplicate detection across workers using shared lock
+- Automatic chunk compression after import
+- Progress tracking with Logfire instrumentation
+
+**Usage**:
+```bash
+cd ingest
+uv run python scripts/import.py /path/to/slack-export --workers 4
+
+# With date filter (only import messages since date)
+uv run python scripts/import.py /path/to/slack-export --since 2024-01-01
+uv run python scripts/import.py /path/to/slack-export --since 7M  # 7 months ago
+
+# Use just command
+just import /path/to/slack-export
+```
+
+**Options**:
+- `--workers N`: Number of parallel workers for message processing (default: 1)
+- `--since DATE`: Only import messages on or after this date (YYYY-MM-DD or duration like "7M", "30D")
+
+### `migrate_messages.py` - Table-to-Table Migration
+
+**Purpose**: Migrate message data from one table to another in batches, useful for schema changes or data reorganization.
+
+**Features**:
+- Batch processing with configurable size
+- Resume capability via job state file
+- Progress tracking with rows/sec metrics
+- Conflict handling with `ON CONFLICT DO NOTHING`
+- 5-second delay between batches to prevent database overload
+
+**Usage**:
+```bash
+cd ingest
+
+# Start new migration
+uv run python scripts/migrate_messages.py --dest-table slack.message_vanilla --batch-size 10000
+
+# Resume from job file
+uv run python scripts/migrate_messages.py --resume migration_job_20240115_120530.json
+
+# Override batch size when resuming
+uv run python scripts/migrate_messages.py --resume migration_job.json --batch-size 5000
+```
+
+**Job State**: Creates a JSON file tracking progress, allowing safe interruption and resume.
+
+### `backfill_searchable_content.py` - Searchable Content Backfill
+
+**Purpose**: Backfill the `searchable_content` field for existing messages and re-embed messages that have attachments.
+
+**Background**: The `searchable_content` field combines message text with attachment metadata for improved search. Existing messages only have embeddings for their text field. This script:
+1. Generates `searchable_content` by combining text + attachment titles/text/fallback
+2. Re-embeds messages that have attachments (since their existing embeddings are text-only)
+3. Leaves embeddings unchanged for messages without attachments
+
+**Features**:
+- Naturally resumable (processes only rows where `searchable_content IS NULL`)
+- Selective re-embedding (only messages with attachments)
+- Dummy embedding support for testing without API costs
+- Progress tracking with rows/sec metrics
+- 5-second delay between batches
+
+**Usage**:
+```bash
+cd ingest
+
+# Run backfill with real embeddings
+uv run python scripts/backfill_searchable_content.py --batch-size 1000
+
+# Run with dummy embeddings (for testing, no OpenAI API calls)
+uv run python scripts/backfill_searchable_content.py --batch-size 1000 --use-dummy-embeddings
+
+# If interrupted, just run again - it will continue automatically
+uv run python scripts/backfill_searchable_content.py --batch-size 1000
+```
+
+**Performance**: Typical throughput is 50-200 rows/sec depending on batch size, attachment frequency, and database performance.
 
 ## Observability with Logfire
 

@@ -1,4 +1,4 @@
-set local search_path = pg_catalog, pg_temp;
+set local search_path = public, timescale_functions, pg_catalog, pg_temp;
 
 -- migration infrastructure
 do $block$

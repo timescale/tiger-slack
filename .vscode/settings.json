@@ -1,9 +1,19 @@
 {
-  "biome.lsp.bin": "./mcp/node_modules/@biomejs/biome/bin/biome",
-  "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  }
+	"biome.lsp.bin": "./mcp/node_modules/@biomejs/biome/bin/biome",
+	"[typescript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[python]": {
+		"editor.defaultFormatter": "charliermarsh.ruff",
+		"editor.formatOnSave": true,
+		"editor.codeActionsOnSave": {
+			"source.fixAll": "explicit",
+			"source.organizeImports": "explicit"
+		}
+	},
+	"ruff.lint.enable": true,
+	"ruff.format.enable": true
 }

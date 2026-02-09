@@ -9,7 +9,11 @@ from psycopg_pool import AsyncConnectionPool
 from slack_bolt.app.async_app import AsyncApp
 from slack_bolt.context.ack.async_ack import AsyncAck
 
-from tiger_slack.utils import get_message_embedding, remove_null_bytes
+from tiger_slack.utils import (
+    add_message_embeddings,
+    add_message_searchable_content,
+    remove_null_bytes,
+)
 
 
 def diagnostic_to_dict(d: psycopg.errors.Diagnostic) -> dict[str, Any]:
@@ -58,26 +62,42 @@ async def upsert_channel(pool: AsyncConnectionPool, event: dict[str, Any]) -> No
 
 @logfire.instrument("insert_message", extract_args=False)
 async def insert_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    embedding = await get_message_embedding(event)
+    add_message_searchable_content(event)
+    await add_message_embeddings(event)
 
     async with (
         pool.connection() as con,
         con.transaction() as _,
         con.cursor() as cur,
     ):
-        await cur.execute("select slack.insert_message(%s, %s::vector(1536))", (Jsonb(remove_null_bytes(event)), embedding))
+        await cur.execute(
+            "select slack.insert_message(%s)",
+            [Jsonb(remove_null_bytes(event))],
+        )
 
 
 @logfire.instrument("update_message", extract_args=False)
 async def update_message(pool: AsyncConnectionPool, event: dict[str, Any]) -> None:
-    embedding = await get_message_embedding(event.get("message", {}))
+    message = event["message"]
+    if not message:
+        return
+
+    # in these update events, the channel is not on the message, itself,
+    # so we have to grab it from the event and slap it on the message
+    message["channel"] = event.get("channel")
+
+    add_message_searchable_content(message)
+    await add_message_embeddings(message)
 
     async with (
         pool.connection() as con,
         con.transaction() as _,
         con.cursor() as cur,
     ):
-        await cur.execute("select slack.update_message(%s, %s::vector(1536))", (Jsonb(remove_null_bytes(event)), embedding))
+        await cur.execute(
+            "select slack.update_message(%s)",
+            [Jsonb(remove_null_bytes(message))],
+        )
 
 
 @logfire.instrument("delete_message", extract_args=False)
@@ -173,6 +193,6 @@ async def register_handlers(app: AsyncApp, pool: AsyncConnectionPool) -> None:
                 await insert_event(pool, event, error)
 
     app.message("")(event_handler)
-    
+
     # listen to all events
     app.event(re.compile(r".+"))(event_handler)
