@@ -16,9 +16,15 @@ import logfire
 from dotenv import find_dotenv, load_dotenv
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
+from pydantic_ai import Embedder
 
 from tiger_slack.logging_config import setup_logging
-from tiger_slack.utils import add_message_embeddings, add_message_searchable_content
+from tiger_slack.utils import (
+    MockEmbedder,
+    add_message_embeddings,
+    add_message_searchable_content,
+    embedder,
+)
 
 load_dotenv(dotenv_path=find_dotenv())
 setup_logging()
@@ -87,9 +93,10 @@ async def insert_dummy_messages(
     # Determine dummy embedding value based on add_searchable_content flag
     # If add_searchable_content is True, use 1.0, otherwise use 0.0
     # But only use dummy embeddings if use_dummy_embeddings is True
-    dummy_value = None
+    mock_embedder: Embedder | None = None
     if use_dummy_embeddings:
-        dummy_value = 1.0 if add_searchable_content else 0.0
+        val = 1.0 if add_searchable_content else 0.0
+        mock_embedder = MockEmbedder(val)
 
     # Add searchable_content field to each message if requested
     if add_searchable_content:
@@ -100,7 +107,7 @@ async def insert_dummy_messages(
     await add_message_embeddings(
         messages,
         field_to_embed=None if add_searchable_content else "text",
-        use_dummy_embeddings=dummy_value,
+        embedder=mock_embedder if mock_embedder else embedder,
     )
 
     # Insert into database using slack.insert_message function (accepts array)

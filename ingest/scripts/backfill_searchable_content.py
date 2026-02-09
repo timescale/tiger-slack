@@ -40,7 +40,12 @@ from psycopg import AsyncConnection
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from tiger_slack.utils import add_message_embeddings, add_message_searchable_content
+from tiger_slack.utils import (
+    MockEmbedder,
+    add_message_embeddings,
+    add_message_searchable_content,
+    embedder,
+)
 
 load_dotenv(dotenv_path=find_dotenv(usecwd=False))
 
@@ -185,7 +190,7 @@ async def backfill_batch_with_attachments(
                 if messages_to_embed:
                     await add_message_embeddings(
                         messages_to_embed,
-                        use_dummy_embeddings=1.0 if use_dummy_embeddings else None,
+                        embedder=MockEmbedder() if use_dummy_embeddings else embedder,
                     )
 
                 # Update the database

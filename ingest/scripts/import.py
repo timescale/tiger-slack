@@ -11,12 +11,11 @@ import aiofiles
 import click
 import logfire
 import psycopg
-import tiktoken
 from dotenv import find_dotenv, load_dotenv
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from tiger_slack.constants import SEARCH_CONTENT_FIELD
+from tiger_slack.constants import MAX_TOKENS_PER_EMBEDDING_REQUEST, SEARCH_CONTENT_FIELD
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
 from tiger_slack.utils import (
@@ -24,15 +23,15 @@ from tiger_slack.utils import (
     add_message_searchable_content,
     parse_since_flag,
     remove_null_bytes,
+    token_encoder,
 )
 
 load_dotenv(dotenv_path=find_dotenv())
 setup_logging()
 
 logger = logging.getLogger(__name__)
-token_encoder = tiktoken.encoding_for_model("text-embedding-3-small")
 
-MAX_TOKENS_PER_EMBEDDING_REQUEST = 300_000
+
 DESIRED_BATCH_SIZE = 500  # legacy, not sure if legit
 
 
