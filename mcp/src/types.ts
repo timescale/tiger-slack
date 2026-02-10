@@ -66,11 +66,13 @@ export const zFile = z
   })
   .describe('A file associated with a Slack message');
 
-export const zAttachment = z.object({
-  title: z.string().nullish(),
-  text: z.string().nullish(),
-  fallback: z.string().nullish(),
-});
+export const zAttachment = z
+  .object({
+    title: z.string().nullish(),
+    text: z.string().nullish(),
+    fallback: z.string().nullish(),
+  })
+  .passthrough();
 
 export const zMessage = z.object({
   ts: z.string().describe('The timestamp of the message'),
