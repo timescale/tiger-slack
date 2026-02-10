@@ -169,6 +169,8 @@ def get_text_from_text_object(
 # Fallback: attachment[].fallback
 def add_message_searchable_content(message: dict[str, Any]) -> None:
     searchable_content = message.get("text", "")
+    if searchable_content is None:
+        searchable_content = ""
     try:
         # convert list of dicts into actual slack_sdk attachment objects
         attachments = list(map(get_attachment, message.get("attachments", []) or []))
@@ -202,15 +204,13 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
                             searchable_content += (
                                 f"\n{get_text_from_text_object(block.text)}"
                             )
-                        for raw_field in block.fields:
+                        for field in block.fields:
                             if (
-                                not isinstance(raw_field, TextObject)
-                                and raw_field["value"]
-                                and raw_field["title"]
+                                not isinstance(field, TextObject)
+                                and field["value"]
+                                and field["title"]
                             ):
-                                field = safely_instantiate_class(
-                                    raw_field, AttachmentField
-                                )
+                                field = safely_instantiate_class(field, AttachmentField)
                             searchable_content += (
                                 f"\n{get_text_from_text_object(field)}"
                             )
