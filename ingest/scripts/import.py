@@ -2,8 +2,10 @@ import asyncio
 import json
 import logging
 import re
+from collections import deque
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 import aiofiles
 import click
@@ -13,14 +15,24 @@ from dotenv import find_dotenv, load_dotenv
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
+from tiger_slack.constants import MAX_TOKENS_PER_EMBEDDING_REQUEST, SEARCH_CONTENT_FIELD
 from tiger_slack.logging_config import setup_logging
 from tiger_slack.migrations.runner import migrate_db
-from tiger_slack.utils import parse_since_flag, remove_null_bytes
+from tiger_slack.utils import (
+    add_message_embeddings,
+    add_message_searchable_content,
+    parse_since_flag,
+    remove_null_bytes,
+    token_encoder,
+)
 
-load_dotenv(dotenv_path=find_dotenv(usecwd=True))
+load_dotenv(dotenv_path=find_dotenv())
 setup_logging()
 
 logger = logging.getLogger(__name__)
+
+
+DESIRED_BATCH_SIZE = 500  # legacy, not sure if legit
 
 
 @logfire.instrument("get_channel_name_to_id_mapping", extract_args=False)
@@ -60,7 +72,7 @@ async def channel_files(
     all_files = []
     for channel_dir, channel_id in await channel_dirs(pool, directory):
         for file in channel_dir.glob("*.json"):
-            date_match = re.match(r'^(\d{4}-\d{2}-\d{2})\.json$', file.name)
+            date_match = re.match(r"^(\d{4}-\d{2}-\d{2})\.json$", file.name)
             if date_match:
                 file_date_str = date_match.group(1)
                 try:
@@ -70,12 +82,12 @@ async def channel_files(
                 except ValueError:
                     logger.warning(
                         f"Skipping file with invalid date format in filename: {file}",
-                        extra={"channel_id": channel_id, "filename": file.name}
+                        extra={"channel_id": channel_id, "filename": file.name},
                     )
             else:
                 logger.warning(
                     f"Skipping file with non-standard filename: {file}",
-                    extra={"channel_id": channel_id, "filename": file.name}
+                    extra={"channel_id": channel_id, "filename": file.name},
                 )
 
     all_files.sort(key=lambda x: x[1].name)
@@ -119,7 +131,8 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
                         async with con.transaction() as _:
                             event = {"channel": channel}
                             await cur.execute(
-                                "select * from slack.upsert_channel(%s)", (Jsonb(event),)
+                                "select * from slack.upsert_channel(%s)",
+                                (Jsonb(event),),
                             )
     except Exception as e:
         logger.exception(
@@ -129,81 +142,25 @@ async def load_channels_from_file(pool: AsyncConnectionPool, file_path: Path) ->
         raise
 
 
-MESSAGE_SQL = """\
-insert into slack.message
-( ts
-, channel_id
-, team
-, text
-, type
-, user_id
-, blocks
-, event_ts
-, thread_ts
-, channel_type
-, client_msg_id
-, parent_user_id
-, bot_id
-, attachments
-, files
-, app_id
-, subtype
-, trigger_id
-, workflow_id
-, display_as_bot
-, upload
-, x_files
-, icons
-, language
-, edited
-, reactions
-)
-select
-  slack.to_timestamptz(o->>'ts')
-, o->>'channel_id'
-, o->>'team'
-, o->>'text'
-, o->>'type'
-, o->>'user'
-, o->'blocks'
-, slack.to_timestamptz(o->>'event_ts')
-, slack.to_timestamptz(o->>'thread_ts')
-, o->>'channel_type'
-, (o->>'client_msg_id')::uuid
-, o->>'parent_user_id'
-, o->>'bot_id'
-, o->'attachments'
-, o->'files'
-, o->>'app_id'
-, o->>'subtype'
-, o->>'trigger_id'
-, o->>'workflow_id'
-, (o->>'display_as_bot')::bool
-, (o->>'upload')::bool
-, o->'x_files'
-, o->'icons'
-, o->'language'
-, o->'edited'
-, r.reactions
-from jsonb_array_elements(%(json)s) o
-left outer join lateral
-(
-    select jsonb_agg
-    ( jsonb_build_object
-      ( 'reaction', r."name"
-      , 'user_id', u.user_id
-      )
-    ) as reactions
-    from jsonb_to_recordset(o->'reactions') r("name" text, users jsonb, count bigint)
-    inner join lateral jsonb_array_elements_text(r.users) u(user_id) on (true)
-    where o->>'type' = 'message'
-) r on (true)
-where o->>'type' = 'message'
-on conflict (ts, channel_id) do nothing
-"""
+async def filter_messages(
+    pool: AsyncConnectionPool, messages: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Filter out messages that match discard patterns before embedding."""
+    with logfire.suppress_instrumentation():
+        async with pool.connection() as con, con.cursor() as cur:
+            await cur.execute(
+                "select slack.filter_messages(%s)",
+                [Jsonb(messages)],
+            )
+            result = await cur.fetchone()
+            if result and result[0]:
+                return result[0]
+            return []
 
 
-async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
+async def insert_messages(
+    pool: AsyncConnectionPool, messages: list[dict[str, Any]]
+) -> None:
     with logfire.suppress_instrumentation():
         async with (
             pool.connection() as con,
@@ -213,7 +170,8 @@ async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
                 async with con.transaction() as _:
                     with logfire.suppress_instrumentation():
                         await cur.execute(
-                            MESSAGE_SQL, dict(json=remove_null_bytes(content, True))
+                            "select slack.insert_message(%s)",
+                            [Jsonb(remove_null_bytes(messages))],
                         )
             except psycopg.Error as e:
                 logger.exception(
@@ -223,89 +181,158 @@ async def insert_messages(pool: AsyncConnectionPool, content: str) -> None:
                 raise
 
 
+## This is the process
+# 1. get file from the file queue
+# 2. read all messages from file
+# 3. filter out messages (this uses the psql function that uses message_discard)
+# 4. add filtered messages to the message_buffer
+# 5. iterate over message_buffer, building up a batch of messages to insert (this is based on the token count of each new message  and DESIRED_BATCH_SIZE)
+# 6. keep looping until all files are read (when the queue returns None), the message buffer is processed and the current batch is empty
 async def process_file_worker(
     pool: AsyncConnectionPool,
     file_queue: asyncio.Queue[tuple[str, Path] | None],
     worker_id: int,
 ) -> None:
-    buffer = ""
-    item_count = 0
+    # the messages to be imported in next batch
+    current_message_batch: list[dict[str, Any]] = []
+
+    # the messages to be processed (e.g. ones that were imported via file read)
+    # using a deque (double ended queue) instead of a list because a pop(0) in a
+    # list is a O(n) operation, rather than the O(1) you get with deque
+    message_buffer: deque[dict[str, Any]] = deque([])
+
     files: list[tuple[str, str]] = []
+    token_count = 0
 
     while True:
         item = await file_queue.get()
-        if item is None:
-            break
 
-        channel_id, file = item
-        files.append((channel_id, str(file.relative_to(file.parent.parent))))
+        if item is not None:
+            channel_id, file = item
+            files.append((channel_id, str(file.relative_to(file.parent.parent))))
+            try:
+                async with aiofiles.open(file) as f:
+                    file_content = await f.read()
 
-        try:
-            async with aiofiles.open(file, mode="r") as f:
-                content = await f.read()
+                raw_messages = json.loads(file_content)
 
-            num_elements = len(re.findall(r"^    {$", content, re.MULTILINE))
-            content = re.sub(
-                r"^    {$",
-                f'    {{\n        "channel_id": "{channel_id}",',
-                content,
-                flags=re.MULTILINE,
-            )
+                for message in raw_messages:
+                    message["channel"] = channel_id
+                    add_message_searchable_content(message)
 
-            if len(buffer) == 0:
-                buffer = content
-            else:
-                buffer = buffer.rstrip("]") + "," + content.lstrip("[")
-            item_count += num_elements
+                # Filter out messages that match discard patterns
+                filtered_messages = await filter_messages(pool, raw_messages)
 
-            if item_count >= 500:
-                with logfire.span(
-                    "loading_messages_batch",
-                    worker_id=worker_id,
-                    files=files,
-                    num_messages=item_count,
-                ):
-                    await insert_messages(pool, buffer)
-                buffer = ""
-                item_count = 0
-                files = []
-        finally:
+                new_messages = deque(filtered_messages)
+                message_buffer += new_messages
+
+            except Exception:
+                logfire.exception(f"Failed to load messages from {file}")
+        else:
             file_queue.task_done()
 
-    if len(buffer) > 0:
-        with logfire.span(
-            "loading_messages_final_batch",
-            worker_id=worker_id,
-            files=files,
-            num_messages=item_count,
-        ):
-            await insert_messages(pool, buffer)
+        try:
+            # this is determined by whether or not the current batches token count
+            # is less than the MAX_TOKENS_PER_EMBEDDING_REQUEST count
+            should_add_messages_to_current_batch = True
+
+            # this is going to add messages to the current batch if the message's token count
+            # plus the current batch's token count does not exceed openai's embedding max per request
+            # which is currently 300k for the model we are using
+            while len(message_buffer) or len(current_message_batch):
+                if len(message_buffer):
+                    message = message_buffer.popleft()
+
+                    searchable_content = message[SEARCH_CONTENT_FIELD]
+
+                    tokens_in_message_text = (
+                        len(token_encoder.encode(searchable_content))
+                        if searchable_content
+                        else 0
+                    )
+
+                    can_encode_message_in_batch = (
+                        token_count + tokens_in_message_text
+                    ) < MAX_TOKENS_PER_EMBEDDING_REQUEST
+
+                    if can_encode_message_in_batch:
+                        current_message_batch.append(message)
+                        token_count += tokens_in_message_text
+                    else:
+                        message_buffer.appendleft(message)
+                        should_add_messages_to_current_batch = False
+
+                ## insert the current batch if:
+                # the batch size meets our DESIRED_BATCH_SIZE
+                # OR we can't add more messages due to token size
+                # OR there are no more files to read and there are no
+                # more messages in the buffer
+                if (
+                    (len(current_message_batch) >= DESIRED_BATCH_SIZE)
+                    or (not should_add_messages_to_current_batch)
+                    or (item is None and not len(message_buffer))
+                ):
+                    with logfire.span(
+                        "Embedding messages", num_messages=len(current_message_batch)
+                    ):
+                        await add_message_embeddings(current_message_batch)
+                    with logfire.span(
+                        "loading_messages_batch",
+                        worker_id=worker_id,
+                        files=files,
+                        num_messages=len(current_message_batch),
+                    ):
+                        await insert_messages(pool, current_message_batch)
+                    files = []
+                    current_message_batch = []
+                    token_count = 0
+                    should_add_messages_to_current_batch = True
+                # if there are more files to read from and there is nothing else in the buffer
+                elif item is not None and not len(message_buffer):
+                    break
+
+            # the buffer and current batch are empty and there are no more files to process
+            if item is None:
+                break
+        except Exception:
+            logfire.exception("Failed to import messages")
 
 
 @logfire.instrument("load_messages", extract_args=["directory", "num_workers"])
-async def load_messages(pool: AsyncConnectionPool, directory: Path, num_workers: int = 4, since: date | None = None) -> None:
+async def load_messages(
+    pool: AsyncConnectionPool,
+    directory: Path,
+    num_workers: int = 4,
+    since: date | None = None,
+) -> None:
     files = await channel_files(pool, directory, since)
 
-    with logfire.span("parallel_processing", num_files=len(files), num_workers=num_workers):
+    with logfire.span(
+        "parallel_processing", num_files=len(files), num_workers=num_workers
+    ):
         file_queue: asyncio.Queue[tuple[str, Path] | None] = asyncio.Queue()
         for file_data in files:
             await file_queue.put(file_data)
 
         # Add sentinel values to signal workers to stop
+        # Otherwise, the queue.get() will hang indefinitely in each worker
         for _ in range(num_workers):
             await file_queue.put(None)
 
         async with asyncio.TaskGroup() as tg:
             for worker_id in range(num_workers):
-                tg.create_task(process_file_worker(pool, file_queue, worker_id))
+                tg.create_task(
+                    process_file_worker(
+                        pool,
+                        file_queue,
+                        worker_id,
+                    )
+                )
 
 
 @logfire.instrument("compress_old_messages", extract_args=False)
 async def compress_old_messages(pool: AsyncConnectionPool) -> None:
-    async with (
-        pool.connection() as con,
-        con.cursor() as cur
-    ):
+    async with pool.connection() as con, con.cursor() as cur:
         # get the compression policy interval
         await cur.execute("""
               select config->>'compress_after' as compress_after
@@ -321,9 +348,12 @@ async def compress_old_messages(pool: AsyncConnectionPool) -> None:
         compress_after = row[0]  # e.g., "45 days"
 
         # get a list of chunks to compress
-        await cur.execute("""
+        await cur.execute(
+            """
             select public.show_chunks('slack.message', older_than => %s::text::interval)
-        """, (compress_after,))
+        """,
+            (compress_after,),
+        )
         chunks = [row[0] for row in await cur.fetchall()]
         if not chunks:
             logger.info("no chunks from slack.message to compress")
@@ -332,9 +362,12 @@ async def compress_old_messages(pool: AsyncConnectionPool) -> None:
         # compress each chunk
         for chunk in chunks:
             with logfire.span("compressing_chunk", chunk=chunk):
-                await cur.execute("""
+                await cur.execute(
+                    """
                       select public.compress_chunk(%s::text::regclass, if_not_compressed => true)
-                  """, (chunk,))
+                  """,
+                    (chunk,),
+                )
 
 
 @logfire.instrument("run_import")
@@ -364,8 +397,6 @@ async def run_import(directory: Path, num_workers: int, since: date | None = Non
 
         # Import message history from channel subdirectories
         await load_messages(pool, directory, num_workers, since)
-        # Compress old messages
-        await compress_old_messages(pool)
 
 
 @click.command()

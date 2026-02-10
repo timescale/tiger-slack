@@ -19,9 +19,13 @@
             "request": "launch",
             "preLaunchTask": "Tiger-Slack MCP - Build Only",
             "runtimeExecutable": "node",
-            "runtimeArgs": ["--enable-source-maps"],
+            "runtimeArgs": [
+                "--enable-source-maps"
+            ],
             "program": "${workspaceFolder}/mcp/dist/index.js",
-            "args": ["http"],
+            "args": [
+                "http"
+            ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "cwd": "${workspaceFolder}/mcp",
@@ -51,7 +55,7 @@
             "name": "Run Message Migration",
             "type": "python",
             "request": "launch",
-            "module": "tiger_slack.migrate_messages",
+            "program": "${workspaceFolder}/ingest/scripts/migrate_messages.py",
             "args": [
                 "--dest-table",
                 "slack.message_vanilla"
@@ -64,7 +68,7 @@
             "name": "Run Message Migration - Continue",
             "type": "python",
             "request": "launch",
-            "module": "tiger_slack.migrate_messages",
+            "program": "${workspaceFolder}/ingest/scripts/migrate_messages.py",
             "args": [
                 "--resume",
                 "${workspaceFolder}/ingest/migration_job_20260122_095200.json"
@@ -77,13 +81,71 @@
             "name": "Run Import",
             "type": "python",
             "request": "launch",
-            "module": "tiger_slack.import",
+            "program": "${workspaceFolder}/ingest/scripts/import.py",
             "args": [
-                "${workspaceFolder}/dump"
+                "${input:importDirectory}"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/ingest",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Backfill Searchable Content",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/ingest/scripts/backfill_searchable_content.py",
+            "args": [
+                "--reembed-batch-size",
+                "1000",
+                "--in-place-batch-size",
+                "5000",
+                "--workers",
+                "4"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Run Backfill Searchable Content (Dummy)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/ingest/scripts/backfill_searchable_content.py",
+            "args": [
+                "--reembed-batch-size",
+                "1000",
+                "--in-place-batch-size",
+                "5000",
+                "--workers",
+                "4",
+                "--use-dummy-embeddings"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Generate Dummy Messages",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/ingest/scripts/generate_dummy_messages.py",
+            "args": [
+                "10000",
+                "--with-attachments-pct",
+                "50",
+                "--use-dummy-embeddings"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/ingest",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "importDirectory",
+            "type": "promptString",
+            "description": "Path to Slack export directory",
+            "default": "${workspaceFolder}/data"
         }
     ]
 }
