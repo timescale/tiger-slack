@@ -67,9 +67,9 @@ export const zFile = z
   .describe('A file associated with a Slack message');
 
 export const zAttachment = z.object({
-  title: z.string(),
-  text: z.string(),
-  fallback: z.string(),
+  title: z.string().nullish(),
+  text: z.string().nullish(),
+  fallback: z.string().nullish(),
 });
 
 export const zMessage = z.object({
