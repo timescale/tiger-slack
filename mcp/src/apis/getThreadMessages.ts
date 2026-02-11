@@ -4,28 +4,22 @@ import {
   type Message,
   type MessageInThread,
   type ServerContext,
+  type User,
   zIncludeFilters,
+  zMessageFilter,
   zMessageInThread,
   zUser,
 } from '../types.js';
-import { convertTsToTimestamp } from '../util/formatTs.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
+import { normalizeMessageFilterQueryParameters } from '../util/normalizeMessageFilterQueryParameters.js';
 
 const inputSchema = {
   ...zIncludeFilters.shape,
-  channel: z
-    .string()
-    .min(1)
-    .describe('The ID of the channel to fetch messages from.'),
-
-  ts: z
-    .string()
-    .min(1)
-    .describe(
-      'The thread timestamp to fetch messages for. This is the ts of the parent message. Use the `thread_ts` field from a known message in the thread.',
-    ),
+  messageFilters: z
+    .array(zMessageFilter)
+    .describe('The messages to fetch the threads for.'),
 } as const;
 
 const outputSchema = {
@@ -52,20 +46,35 @@ export const getThreadMessagesFactory: ApiFactory<
     outputSchema,
   },
   fn: async ({
-    channel,
     includeFiles,
     includePermalinks,
-    ts,
+    messageFilters: passedMessageFilters,
   }): Promise<{
     messages: MessageInThread[];
-    users: Record<string, z.infer<typeof zUser>>;
+    users: Record<string, User>;
   }> => {
+    const messageFilters = normalizeMessageFilterQueryParameters(
+      pgPool,
+      passedMessageFilters,
+    );
+
     const result = await pgPool.query<Message>(
       /* sql */ `
-  SELECT ${getMessageFields({ includeFiles })} FROM slack.message
-  WHERE channel_id = $1 AND (thread_ts = $2 OR ts = $2)
-  ORDER BY ts DESC`, // messagesToTree expects messages in descending order
-      [channel, convertTsToTimestamp(ts)],
+      WITH filters AS (
+        SELECT
+          f->>'channel' AS channel_id,
+          (f->>'ts')::timestamptz AS ts
+        FROM jsonb_array_elements($1::jsonb) AS f
+      )
+      SELECT ${getMessageFields({ includeFiles })}
+      FROM slack.message m
+      WHERE EXISTS (
+        SELECT 1 FROM filters f
+        WHERE m.channel_id = f.channel_id
+          AND (m.thread_ts = f.ts OR m.ts = f.ts)
+      )
+      ORDER BY ts DESC`, // messagesToTree expects messages in descending order
+      [JSON.stringify(messageFilters)],
     );
 
     const { involvedUsers, channels } = messagesToTree(
@@ -73,7 +82,9 @@ export const getThreadMessagesFactory: ApiFactory<
       includePermalinks || false,
     );
     const users = await getUsersMap(pgPool, involvedUsers);
-    const messages = channels[channel]?.messages || [];
+
+    // Flatten messages from all channels
+    const messages = Object.values(channels).flatMap((c) => c.messages);
 
     return {
       messages,
