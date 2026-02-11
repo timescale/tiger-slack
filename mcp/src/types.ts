@@ -151,6 +151,8 @@ export const zMessageFilter = z.object({
     ),
 });
 
+export type MessageFilter = z.infer<typeof zMessageFilter>;
+
 export const zTimeFilters = z.object({
   timestampStart: z.coerce
     .date()

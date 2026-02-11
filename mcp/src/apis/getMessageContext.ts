@@ -11,11 +11,10 @@ import {
   type zUser,
 } from '../types.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
-import { convertTsToTimestamp } from '../util/formatTs.js';
-import { getChannelIds } from '../util/getChannelIds.js';
 import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
+import { normalizeMessageFilterQueryParameters } from '../util/normalizeMessageFilterQueryParameters.js';
 import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
 
 const inputSchema = {
@@ -60,24 +59,10 @@ export const getMessageContextFactory: ApiFactory<
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
     const client = await pgPool.connect();
-    const channelIds = await getChannelIds(
+    const messageFilters = normalizeMessageFilterQueryParameters(
       pgPool,
-      passedMessageFilters.map((x) => x.channel),
+      passedMessageFilters,
     );
-
-    if (channelIds === null || channelIds.length === 0) {
-      throw new Error('You must pass at least one existing channel id');
-    }
-
-    const messageFilters = passedMessageFilters.reduce<
-      z.infer<typeof zMessageFilter>[]
-    >((acc, curr, index) => {
-      acc.push({
-        channel: channelIds[index] || '',
-        ts: convertTsToTimestamp(curr.ts),
-      });
-      return acc;
-    }, []);
 
     try {
       const result = await client.query<Message>(
