@@ -10,10 +10,10 @@ import {
 import { generatePermalink } from '../util/addMessageLinks.js';
 import { findChannel } from '../util/findChannel.js';
 import { findUser } from '../util/findUser.js';
+import { getChannelIds } from '../util/getChannelIds.js';
 import { getMessageKey } from '../util/getMessageKey.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { normalizeMessageTs } from '../util/messagesToTree.js';
-import { getChannelIds } from '../util/getChannelIds.js';
 
 const inputSchema = {
   ...zCommonSearchFilters.extend({
