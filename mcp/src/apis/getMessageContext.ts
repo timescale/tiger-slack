@@ -84,7 +84,7 @@ export const getMessageContextFactory: ApiFactory<
         selectExpandedMessages(
           /* sql */ `
 SELECT ${getMessageFields({ includeFiles, coerceType: false, messageTableAlias: 'm' })}
-FROM slack.message m
+FROM slack.message_vanilla m
 INNER JOIN (
   SELECT
     f->>'channel' AS channel_id,
