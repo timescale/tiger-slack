@@ -125,7 +125,7 @@ export const searchFactory: ApiFactory<
         WHERE searchable_content != ''
           AND (($1::TEXT[] IS NULL) OR (user_id = ANY($1)))
           AND (($2::TEXT[] IS NULL) OR (channel_id = ANY($2)))
-          AND (($3::TIMESTAMPTZ IS NULL AND ts >= (NOW() - interval '1 week')) OR ts >= $3::TIMESTAMPTZ)
+          AND (($3::TIMESTAMPTZ IS NULL) OR ts >= $3::TIMESTAMPTZ)
           AND ($4::TIMESTAMPTZ IS NULL OR ts <= $4::TIMESTAMPTZ)
         ORDER BY ${type === 'semantic' ? `embedding <=> $5::vector(1536)` : `searchable_content <@> to_bm25query($5::text, 'slack.message_vanilla_searchable_content_bm25_idx')`}
         LIMIT $6`,
