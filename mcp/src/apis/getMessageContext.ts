@@ -17,7 +17,6 @@ import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
-import { getChannelIds } from '../util/getChannelIds.js';
 
 const inputSchema = {
   messageFilters: z
