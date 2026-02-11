@@ -17,6 +17,7 @@ import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
+import { getChannelIds } from '../util/getChannelIds.js';
 
 const inputSchema = {
   messageFilters: z
@@ -84,7 +85,7 @@ export const getMessageContextFactory: ApiFactory<
         selectExpandedMessages(
           /* sql */ `
 SELECT ${getMessageFields({ includeFiles, coerceType: false, messageTableAlias: 'm' })}
-FROM slack.message_vanilla m
+FROM slack.message m
 INNER JOIN (
   SELECT
     f->>'channel' AS channel_id,
