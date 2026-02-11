@@ -1,7 +1,7 @@
 import type { Pool } from 'pg';
-import type { MessageFilter } from '../types';
-import { convertTsToTimestamp } from './formatTs';
-import { getChannelIds } from './getChannelIds';
+import type { MessageFilter } from '../types.js';
+import { convertTsToTimestamp } from './formatTs.js';
+import { getChannelIds } from './getChannelIds.js';
 
 export const normalizeMessageFilterQueryParameters = async (
   pgPool: Pool,
