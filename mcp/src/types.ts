@@ -137,8 +137,21 @@ export const zIncludeFilters = z.object({
     ),
 });
 
-export const zCommonSearchFilters = z.object({
-  ...zIncludeFilters.shape,
+export const zMessageFilter = z.object({
+  channel: z
+    .string()
+    .min(1)
+    .describe('The ID of the channel to fetch messages from.'),
+
+  ts: z
+    .string()
+    .min(1)
+    .describe(
+      'The thread timestamp to fetch messages for. This is the ts of the parent message. Use the `thread_ts` field from a known message in the thread.',
+    ),
+});
+
+export const zTimeFilters = z.object({
   timestampStart: z.coerce
     .date()
     .nullable()
@@ -151,11 +164,20 @@ export const zCommonSearchFilters = z.object({
     .describe(
       'Optional end date for the message range. Defaults to the current time.',
     ),
+});
+
+export const zLimitFilter = z.object({
   limit: z.coerce
     .number()
     .min(1)
     .nullable()
     .describe('The maximum number of messages to return. Defaults to 1000.'),
+});
+
+export const zCommonSearchFilters = z.object({
+  ...zIncludeFilters.shape,
+  ...zTimeFilters.shape,
+  ...zLimitFilter.shape,
 });
 
 export const zUserSearchFilters = z.object({

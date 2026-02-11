@@ -13,6 +13,7 @@ import { findUser } from '../util/findUser.js';
 import { getMessageKey } from '../util/getMessageKey.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { normalizeMessageTs } from '../util/messagesToTree.js';
+import { getChannelIds } from '../util/getChannelIds.js';
 
 const inputSchema = {
   ...zCommonSearchFilters.extend({
@@ -32,7 +33,7 @@ const inputSchema = {
     .string()
     .array()
     .nullable()
-    .describe('Optionally filter search on channels names.'),
+    .describe('Optionally filter search on channels. Can use ids or names.'),
   users: z
     .string()
     .array()
@@ -72,7 +73,7 @@ export const searchFactory: ApiFactory<
   config: {
     title: 'Search Slack Messages',
     description:
-      'Hybrid search across Slack messages using semantic (vector) and keyword (BM25) search with configurable weighting. Returns messages organized by channel and conversation with optional filtering by users, channels, and time range.',
+      'Hybrid search across Slack messages using semantic (vector) and keyword (BM25) search with configurable weighting. Returns messages organized by channel and conversation with optional filtering by users, channels, and time range. Search matches the message text, as well as contents of the attachments.',
     inputSchema,
     outputSchema,
   },
@@ -111,14 +112,10 @@ export const searchFactory: ApiFactory<
       );
       userIdsToFilterOn = userObjs.map((u) => u.id);
     }
-
-    let channelIdsToFilterOn: string[] | null = channelsToFilterOn ? [] : null;
-    if (channelsToFilterOn) {
-      const channelObjs = await Promise.all(
-        channelsToFilterOn.map((channel) => findChannel(pgPool, channel)),
-      );
-      channelIdsToFilterOn = channelObjs.map((u) => u.id);
-    }
+    const channelIdsToFilterOn = await getChannelIds(
+      pgPool,
+      channelsToFilterOn,
+    );
 
     const createQuery = async (type: 'semantic' | 'keyword') =>
       pgPool.query<Message>(
@@ -138,7 +135,7 @@ export const searchFactory: ApiFactory<
           timestampStart?.toISOString(),
           timestampEnd?.toISOString(),
           type === 'semantic' ? JSON.stringify(embedding?.embedding) : keyword,
-          limit * 2,
+          limit * 3,
         ],
       );
 

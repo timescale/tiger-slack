@@ -5,6 +5,9 @@ import {
   type ServerContext,
   type zChannel,
   zConversationsResults,
+  zIncludeFilters,
+  zLimitFilter,
+  zMessageFilter,
   type zUser,
 } from '../types.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
@@ -13,26 +16,14 @@ import { getUsersMap } from '../util/getUsersMap.js';
 import { getMessageFields } from '../util/messageFields.js';
 import { messagesToTree } from '../util/messagesToTree.js';
 import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
+import { getChannelIds } from '../util/getChannelIds.js';
 
 const inputSchema = {
-  ts: z
-    .string()
-    .describe(
-      'The timestamp of the target Slack message to fetch context for.',
-    ),
-  channel: z
-    .string()
-    .describe('The ID of the channel the message was posted in.'),
-  includeFiles: z
-    .boolean()
-    .describe(
-      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
-    ),
-  limit: z.coerce
-    .number()
-    .min(1)
-    .nullable()
-    .describe('The maximum number of messages to return. Defaults to 1000.'),
+  messageFilters: z
+    .array(zMessageFilter)
+    .describe('The Slack messages to context for.'),
+  ...zLimitFilter.shape,
+  ...zIncludeFilters.shape,
   window: z.coerce
     .number()
     .min(0)
@@ -60,9 +51,8 @@ export const getMessageContextFactory: ApiFactory<
     outputSchema,
   },
   fn: async ({
-    ts,
-    channel,
     includeFiles,
+    messageFilters: passedMessageFilters,
     window,
     limit,
   }): Promise<{
@@ -70,19 +60,43 @@ export const getMessageContextFactory: ApiFactory<
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
     const client = await pgPool.connect();
+    const channelIds = await getChannelIds(
+      pgPool,
+      passedMessageFilters.map((x) => x.channel),
+    );
+
+    if (channelIds === null || channelIds.length === 0) {
+      throw new Error('You must pass at least one existing channel id');
+    }
+
+    const messageFilters = passedMessageFilters.reduce<
+      z.infer<typeof zMessageFilter>[]
+    >((acc, curr, index) => {
+      acc.push({
+        channel: channelIds[index] || '',
+        ts: convertTsToTimestamp(curr.ts),
+      });
+      return acc;
+    }, []);
+
     try {
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-SELECT ${getMessageFields({ includeFiles, coerceType: false })} FROM slack.message
-WHERE ts = $1 AND channel_id = $2
-LIMIT 1
+SELECT ${getMessageFields({ includeFiles, coerceType: false, messageTableAlias: 'm' })}
+FROM slack.message m
+INNER JOIN (
+  SELECT
+    f->>'channel' AS channel_id,
+    (f->>'ts')::timestamptz AS ts
+  FROM jsonb_array_elements($1::jsonb) AS f
+) filters ON m.channel_id = filters.channel_id AND m.ts = filters.ts
 `,
+          '$2',
           '$3',
-          '$4',
           includeFiles,
         ),
-        [convertTsToTimestamp(ts), channel, window || 5, limit || 1000],
+        [JSON.stringify(messageFilters), window || 5, limit || 1000],
       );
 
       const { channels, involvedUsers } = messagesToTree(result.rows);
