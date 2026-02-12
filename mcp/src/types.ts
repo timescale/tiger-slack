@@ -83,7 +83,7 @@ export const zMessage = z.object({
     ),
   attachments: z.array(zAttachment).nullish(),
   files: z.array(zFile).optional().nullish(),
-  text: z.string().describe('The text content of the message'),
+  text: z.string().nullish().describe('The text content of the message'),
   searchable_content: z
     .string()
     .nullish()
