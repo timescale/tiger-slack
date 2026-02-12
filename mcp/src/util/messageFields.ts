@@ -1,6 +1,6 @@
 export function getMessageFields({
   coerceType = true,
-  includeAttachments = true,
+  includeAttachments = false,
   includeFiles,
   includeSearchableContent = false,
   messageTableAlias,
