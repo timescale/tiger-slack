@@ -51,6 +51,7 @@ export const getMessageContextFactory: ApiFactory<
   },
   fn: async ({
     includeFiles,
+    includePermalinks,
     messageFilters: passedMessageFilters,
     window,
     limit,
@@ -59,7 +60,7 @@ export const getMessageContextFactory: ApiFactory<
     users: Record<string, z.infer<typeof zUser>>;
   }> => {
     const client = await pgPool.connect();
-    const messageFilters = normalizeMessageFilterQueryParameters(
+    const messageFilters = await normalizeMessageFilterQueryParameters(
       pgPool,
       passedMessageFilters,
     );
@@ -84,7 +85,7 @@ INNER JOIN (
         [JSON.stringify(messageFilters), window || 5, limit || 1000],
       );
 
-      const { channels, involvedUsers } = messagesToTree(result.rows);
+      const { channels, involvedUsers } = messagesToTree(result.rows, includePermalinks || false);
       await addChannelInfo(client, channels);
       const users = await getUsersMap(client, involvedUsers);
 
