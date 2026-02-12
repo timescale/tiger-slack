@@ -85,7 +85,10 @@ INNER JOIN (
         [JSON.stringify(messageFilters), window || 5, limit || 1000],
       );
 
-      const { channels, involvedUsers } = messagesToTree(result.rows, includePermalinks || false);
+      const { channels, involvedUsers } = messagesToTree(
+        result.rows,
+        includePermalinks || false,
+      );
       await addChannelInfo(client, channels);
       const users = await getUsersMap(client, involvedUsers);
 
