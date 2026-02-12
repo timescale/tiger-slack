@@ -53,7 +53,7 @@ export const getThreadMessagesFactory: ApiFactory<
     messages: MessageInThread[];
     users: Record<string, User>;
   }> => {
-    const messageFilters = normalizeMessageFilterQueryParameters(
+    const messageFilters = await normalizeMessageFilterQueryParameters(
       pgPool,
       passedMessageFilters,
     );
