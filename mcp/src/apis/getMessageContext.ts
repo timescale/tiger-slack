@@ -1,14 +1,14 @@
 import type { ApiFactory } from '@tigerdata/mcp-boilerplate';
 import { z } from 'zod';
 import {
+  type Channel,
   type Message,
   type ServerContext,
-  type zChannel,
+  type User,
   zConversationsResults,
   zIncludeFilters,
   zLimitFilter,
   zMessageFilter,
-  type zUser,
 } from '../types.js';
 import { addChannelInfo } from '../util/addChannelInfo.js';
 import { getUsersMap } from '../util/getUsersMap.js';
@@ -56,8 +56,8 @@ export const getMessageContextFactory: ApiFactory<
     window,
     limit,
   }): Promise<{
-    channels: Record<string, z.infer<typeof zChannel>>;
-    users: Record<string, z.infer<typeof zUser>>;
+    channels: Record<string, Channel>;
+    users: Record<string, User>;
   }> => {
     const client = await pgPool.connect();
     const messageFilters = await normalizeMessageFilterQueryParameters(
@@ -69,7 +69,7 @@ export const getMessageContextFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-SELECT ${getMessageFields({ includeFiles, coerceType: false, messageTableAlias: 'm' })}
+SELECT ${getMessageFields({ includeFiles, coerceType: false, includeSearchableContent: true, includeAttachments: false, messageTableAlias: 'm' })}
 FROM slack.message_vanilla m
 INNER JOIN (
   SELECT
