@@ -119,7 +119,7 @@ export const searchFactory: ApiFactory<
     const createQuery = async (type: 'semantic' | 'keyword') =>
       pgPool.query<Message>(
         `SELECT 
-          ${getMessageFields({ includeFiles, coerceType: true })} 
+          ${getMessageFields({ includeFiles, coerceType: true, includeAttachments: false, includeSearchableContent: true })} 
         FROM slack.message_vanilla
         WHERE searchable_content != ''
           AND (($1::TEXT[] IS NULL) OR (user_id = ANY($1)))
@@ -213,5 +213,6 @@ const getResultMessages = (
     message.permalink = includePermalinks
       ? generatePermalink(message)
       : message.permalink;
+    message.searchable_content = message.searchable_content?.trim();
     return normalizeMessageTs(message);
   }) || [];
