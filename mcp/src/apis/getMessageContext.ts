@@ -59,11 +59,11 @@ export const getMessageContextFactory: ApiFactory<
     channels: Record<string, Channel>;
     users: Record<string, User>;
   }> => {
-    const client = await pgPool.connect();
     const messageFilters = await normalizeMessageFilterQueryParameters(
       pgPool,
       passedMessageFilters,
     );
+    const client = await pgPool.connect();
 
     try {
       const result = await client.query<Message>(
