@@ -160,17 +160,17 @@ export const zMessageFilter = z.object({
 export type MessageFilter = z.infer<typeof zMessageFilter>;
 
 export const zTimeFilters = z.object({
-  timestampStart: z.coerce
-    .date()
+  timestampStart: z.iso
+    .datetime({ offset: true })
     .nullable()
     .describe(
-      'Optional start date for the message range. Defaults to rangeEnd - 1w.',
+      'Optional start date for the message range, as an ISO 8601 datetime string. Defaults to rangeEnd - 1w.',
     ),
-  timestampEnd: z.coerce
-    .date()
+  timestampEnd: z.iso
+    .datetime({ offset: true })
     .nullable()
     .describe(
-      'Optional end date for the message range. Defaults to the current time.',
+      'Optional end date for the message range, as an ISO 8601 datetime string. Defaults to the current time.',
     ),
 });
 

@@ -70,13 +70,7 @@ export const getConversationsWithUserFactory: ApiFactory<
           '$5',
           includeFiles,
         ),
-        [
-          user.id,
-          timestampStart?.toISOString(),
-          timestampEnd?.toISOString(),
-          window || 5,
-          limit || 1000,
-        ],
+        [user.id, timestampStart, timestampEnd, window || 5, limit || 1000],
       );
 
       const { channels, involvedUsers } = messagesToTree(
