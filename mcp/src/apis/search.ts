@@ -21,11 +21,11 @@ const inputSchema = {
       .min(1)
       .nullable()
       .describe('The maximum number of messages to return. Defaults to 20.'),
-    timestampStart: z.coerce
-      .date()
+    timestampStart: z.iso
+      .datetime({ offset: true })
       .nullable()
       .describe(
-        'Optional start date for the message range. Defaults to null, which means that search will be against all historic messages.',
+        'Optional start date for the message range, as an ISO 8601 datetime string. Defaults to null, which means that search will be against all historic messages.',
       ),
   }).shape,
   channels: z
@@ -131,8 +131,8 @@ export const searchFactory: ApiFactory<
         [
           userIdsToFilterOn,
           channelIdsToFilterOn,
-          timestampStart?.toISOString(),
-          timestampEnd?.toISOString(),
+          timestampStart,
+          timestampEnd,
           type === 'semantic' ? JSON.stringify(embedding?.embedding) : keyword,
           limit * 3,
         ],

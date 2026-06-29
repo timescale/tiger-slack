@@ -71,12 +71,7 @@ WHERE channel_id = $1
   AND ($3::TIMESTAMPTZ IS NULL OR ts <= $3::TIMESTAMPTZ)
 ORDER BY ts DESC
 LIMIT $4`,
-        [
-          targetChannel.id,
-          timestampStart?.toISOString(),
-          timestampEnd?.toISOString(),
-          limit || 1000,
-        ],
+        [targetChannel.id, timestampStart, timestampEnd, limit || 1000],
       );
 
       const { involvedUsers, channels } = messagesToTree(
