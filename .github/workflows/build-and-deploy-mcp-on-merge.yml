@@ -30,8 +30,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      matrix:
+        include:
+          - env: dev
+            namespace: savannah-system
+          - env: prod
+            namespace: tiger-mcp
     steps:
-      - name: Dispatch Workflow
+      - name: Dispatch Workflow - ${{ matrix.env }}
         uses: timescale/workflow-dispatch-action@main
         with:
           github-token: ${{ secrets.ORG_AUTOMATION_TOKEN }}
@@ -42,5 +49,7 @@ jobs:
           inputs: >
             {
               "repository": "tiger-slack-mcp-server",
-              "sha": "${{ github.sha }}"
+              "sha": "${{ github.sha }}",
+              "env": "${{ matrix.env }}",
+              "namespace": "${{ matrix.namespace }}"
             }
