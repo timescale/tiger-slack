@@ -5,18 +5,24 @@ import { type ServerContext, type User, zUser } from '../types.js';
 const inputSchema = {
   includeBots: z
     .boolean()
-    .describe('If true, will include users that are bots.'),
+    .nullish()
+    .transform((v) => v ?? false)
+    .describe(
+      'Optional. If true, will include users that are bots. Defaults to false.',
+    ),
   includeTimezone: z
     .boolean()
+    .nullish()
+    .transform((v) => v ?? false)
     .describe(
-      'If true, includes the time zone for each user. Not needed for most cases.',
+      'Optional. If true, includes the time zone for each user. Not needed for most cases. Defaults to false.',
     ),
   keyword: z
     .string()
     .min(0)
-    .nullable()
+    .nullish()
     .describe(
-      'Keyword to use to find partial matches on users. Will return users whose id (e.g. U0736TW20), name, real_name_normalized, or display_name_normalized contain the given keyword. This is case insensitive.',
+      'Optional. Keyword to use to find partial matches on users. Will return users whose id (e.g. U0736TW20), name, real_name_normalized, or display_name_normalized contain the given keyword. This is case insensitive. Defaults to null (returns all users).',
     ),
 } as const;
 
