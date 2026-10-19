@@ -14,6 +14,14 @@ const pgPool = new Pool({
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
 });
-const openAIClient = new OpenAI();
+
+const openAIClient = new OpenAI(
+  process.env.OPENROUTER_API_KEY
+    ? {
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: process.env.OPENROUTER_API_KEY,
+      }
+    : {},
+);
 
 export const context: ServerContext = { openAIClient, pgPool };
