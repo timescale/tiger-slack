@@ -23,7 +23,7 @@ from slack_sdk.models.blocks import (
 from tiger_slack.constants import (
     MAX_TOKENS_PER_DOCUMENT,
     MAX_TOKENS_PER_EMBEDDING_REQUEST,
-    OPEN_ROUTER_API_KEY,
+    OPENROUTER_API_KEY,
     SEARCH_CONTENT_FIELD,
 )
 
@@ -32,11 +32,10 @@ T = TypeVar("T")
 embedder = Embedder(
     OpenAIEmbeddingModel(
         "openai/text-embedding-3-small",
-        provider=OpenRouterProvider(api_key=OPEN_ROUTER_API_KEY),
+        provider=OpenRouterProvider(api_key=OPENROUTER_API_KEY),
     )
-    if OPEN_ROUTER_API_KEY
+    if OPENROUTER_API_KEY
     else "openai:text-embedding-3-small",
-    settings={},
 )
 token_encoder = tiktoken.encoding_for_model("text-embedding-3-small")
 logger = logging.getLogger(__name__)
