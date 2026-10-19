@@ -11,6 +11,8 @@ from dateutil.relativedelta import relativedelta
 from psycopg import sql
 from psycopg_pool import AsyncConnectionPool
 from pydantic_ai import Embedder, EmbeddingResult, EmbeddingSettings
+from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 from slack_sdk.models.attachments import Attachment, AttachmentField, BlockAttachment
 from slack_sdk.models.blocks import (
     Block,
@@ -21,12 +23,21 @@ from slack_sdk.models.blocks import (
 from tiger_slack.constants import (
     MAX_TOKENS_PER_DOCUMENT,
     MAX_TOKENS_PER_EMBEDDING_REQUEST,
+    OPEN_ROUTER_API_KEY,
     SEARCH_CONTENT_FIELD,
 )
 
 T = TypeVar("T")
 
-embedder = Embedder("openai:text-embedding-3-small")
+embedder = Embedder(
+    OpenAIEmbeddingModel(
+        "openai/text-embedding-3-small",
+        provider=OpenRouterProvider(api_key=OPEN_ROUTER_API_KEY),
+    )
+    if OPEN_ROUTER_API_KEY
+    else "openai:text-embedding-3-small",
+    settings={},
+)
 token_encoder = tiktoken.encoding_for_model("text-embedding-3-small")
 logger = logging.getLogger(__name__)
 
