@@ -20,15 +20,15 @@ import { selectExpandedMessages } from '../util/selectExpandedMessages.js';
 const inputSchema = {
   messageFilters: z
     .array(zMessageFilter)
-    .describe('The Slack messages to context for.'),
+    .describe('Required. The Slack messages to fetch context for.'),
   ...zLimitFilter.shape,
   ...zIncludeFilters.shape,
   window: z.coerce
     .number()
     .min(0)
-    .nullable()
+    .nullish()
     .describe(
-      'The window of context around the target messages to include. Defaults to 5.',
+      'Optional. The window of context around the target messages to include. Defaults to 5.',
     ),
 } as const;
 

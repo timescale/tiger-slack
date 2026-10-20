@@ -19,41 +19,44 @@ const inputSchema = {
     limit: z.coerce
       .number()
       .min(1)
-      .nullable()
-      .describe('The maximum number of messages to return. Defaults to 20.'),
+      .nullish()
+      .describe(
+        'Optional. The maximum number of messages to return. Defaults to 20.',
+      ),
     timestampStart: z.iso
       .datetime({ offset: true })
-      .nullable()
+      .nullish()
       .describe(
-        'Optional start date for the message range, as an ISO 8601 datetime string. Defaults to null, which means that search will be against all historic messages.',
+        'Optional. Start date for the message range, as an ISO 8601 datetime string. Defaults to null, which means that search will be against all historic messages.',
       ),
   }).shape,
   channels: z
     .string()
     .array()
-    .nullable()
-    .describe('Optionally filter search on channels. Can use ids or names.'),
+    .nullish()
+    .describe(
+      'Optional. Filter search on channels. Can use ids or names. Defaults to null (all channels).',
+    ),
   users: z
     .string()
     .array()
-    .nullable()
+    .nullish()
     .describe(
-      'Optionally filter search based on the username of the sender of messages.',
+      'Optional. Filter search based on the username of the sender of messages. Defaults to null (all users).',
     ),
   keyword: z
     .string()
     .min(4)
     .describe(
-      'Search query for hybrid search on Slack messages. Will return the messages that match the criterion.',
+      'Required. Search query for hybrid search on Slack messages. Will return the messages that match the criterion.',
     ),
   semanticWeight: z
     .number()
-    .multipleOf(0.1)
     .min(0)
     .max(1)
-    .nullable()
+    .nullish()
     .describe(
-      'Controls the balance between semantic and keyword search. 0 = keyword only, 0.5 = equal mix, 1 = semantic only. Default is 0.7 (favor semantic search).',
+      'Optional. Controls the balance between semantic and keyword search. 0 = keyword only, 0.5 = equal mix, 1 = semantic only. Defaults to 0.7 (favor semantic search).',
     ),
 } as const;
 
@@ -113,7 +116,7 @@ export const searchFactory: ApiFactory<
     }
     const channelIdsToFilterOn = await getChannelIds(
       pgPool,
-      channelsToFilterOn,
+      channelsToFilterOn ?? null,
     );
 
     const createQuery = async (type: 'semantic' | 'keyword') =>
@@ -131,8 +134,8 @@ export const searchFactory: ApiFactory<
         [
           userIdsToFilterOn,
           channelIdsToFilterOn,
-          timestampStart,
-          timestampEnd,
+          timestampStart ?? null,
+          timestampEnd ?? null,
           type === 'semantic' ? JSON.stringify(embedding?.embedding) : keyword,
           limit * 3,
         ],
