@@ -19,7 +19,7 @@ const inputSchema = {
   ...zIncludeFilters.shape,
   messageFilters: z
     .array(zMessageFilter)
-    .describe('The messages to fetch the threads for.'),
+    .describe('Required. The messages to fetch the threads for.'),
 } as const;
 
 const outputSchema = {
