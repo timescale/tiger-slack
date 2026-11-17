@@ -12,8 +12,9 @@ permissions:
 jobs:
   docker-publish-mcp:
     name: docker-publish-mcp
-    runs-on: ubuntu-latest
+    runs-on: runs-on/fleet=linux-8cpu-x64/env=ue1
     steps:
+      - uses: runs-on/action@284bff869d4a825f778ac7c38e50f1e31ef198fd # v2.6.0
       - name: Checkout
         uses: actions/checkout@v5
         with:
@@ -56,8 +57,9 @@ jobs:
 
   docker-publish-ingest:
     name: docker-publish-ingest
-    runs-on: ubuntu-latest
+    runs-on: runs-on/fleet=linux-8cpu-x64/env=ue1
     steps:
+      - uses: runs-on/action@284bff869d4a825f778ac7c38e50f1e31ef198fd # v2.6.0
       - name: Checkout
         uses: actions/checkout@v4
         with:
