@@ -84,12 +84,6 @@ export const zMessage = z.object({
   attachments: z.array(zAttachment).nullish(),
   files: z.array(zFile).optional().nullish(),
   text: z.string().nullish().describe('The text content of the message'),
-  searchable_content: z
-    .string()
-    .nullish()
-    .describe(
-      'This is a concatenation of the text field and text content elements from the attachments field. This content is what is used in hybrid search matching.',
-    ),
   user_id: z
     .string()
     .nullable()
