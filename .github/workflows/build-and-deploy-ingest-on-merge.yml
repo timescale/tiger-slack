@@ -21,6 +21,7 @@ jobs:
           inputs: >
             {
               "docker_context": "./ingest",
+              "dockerfile_path": "./ingest/Dockerfile",
               "image_name": "tiger-slack-ingest",
               "repository": "tiger-slack",
               "sha": "${{ github.sha }}",
