@@ -69,7 +69,7 @@ export const getMessageContextFactory: ApiFactory<
       const result = await client.query<Message>(
         selectExpandedMessages(
           /* sql */ `
-SELECT ${getMessageFields({ includeFiles, coerceType: false, includeSearchableContent: true, messageTableAlias: 'm' })}
+SELECT ${getMessageFields({ includeFiles, coerceType: false, messageTableAlias: 'm' })}
 FROM slack.message_vanilla m
 INNER JOIN (
   SELECT

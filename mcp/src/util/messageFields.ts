@@ -2,13 +2,11 @@ export function getMessageFields({
   coerceType = true,
   includeAttachments = false,
   includeFiles,
-  includeSearchableContent = false,
   messageTableAlias,
 }: {
   coerceType?: boolean;
   includeAttachments?: boolean;
   includeFiles?: boolean;
-  includeSearchableContent?: boolean;
   messageTableAlias?: string;
 }): string | string[] {
   const res = [
@@ -21,9 +19,6 @@ export function getMessageFields({
       ? [`attachments${coerceType ? '::jsonb' : ''}`]
       : []),
     ...(includeFiles ? [`files${coerceType ? '::jsonb' : ''}`] : []),
-    ...(includeSearchableContent
-      ? [`searchable_content${coerceType ? '::text' : ''}`]
-      : []),
   ].map((x) => `${messageTableAlias ? `${messageTableAlias}.${x}` : x}`);
 
   return res.join(',');
