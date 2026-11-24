@@ -11,7 +11,7 @@ requires-python = ">=3.13"
 dependencies = [
     "aiocron>=2.1",
     "aiofiles>=24.1.0",
-    "aiohttp>=3.12.15",
+    "aiohttp>=3.14.1",
     "click>=8.2.1",
     "logfire[psycopg,system-metrics]>=4.10.0",
     "pgvector>=0.4.2",
@@ -32,7 +32,7 @@ path = "tiger_slack/__init__.py"
 dev = [
     "ruff>=0.13.1",
     "pyright>=1.1.390",
-    "pytest>=8.4.2",
+    "pytest>=9.0.3",
 ]
 
 [tool.ruff]
