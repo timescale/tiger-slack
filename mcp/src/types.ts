@@ -81,6 +81,10 @@ export const zMessage = z.object({
     .describe(
       'The Slack channel ID the message was posted in (e.g. C123ABC456)',
     ),
+  channel_name: z
+    .string()
+    .describe('The Slack channel name the message was posted in')
+    .nullish(),
   attachments: z.array(zAttachment).nullish(),
   files: z.array(zFile).optional().nullish(),
   text: z.string().nullish().describe('The text content of the message'),

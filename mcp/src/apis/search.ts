@@ -119,8 +119,11 @@ export const searchFactory: ApiFactory<
     const createQuery = async (type: 'semantic' | 'keyword') =>
       pgPool.query<Message>(
         `SELECT 
-          ${getMessageFields({ includeFiles, coerceType: true })} 
-        FROM slack.message_vanilla
+          ${getMessageFields({ includeFiles, coerceType: true, messageTableAlias: 'm' })},
+          cd.channel_name as channel_name
+        FROM slack.message_vanilla m
+        LEFT JOIN slack.channel cd
+          ON cd.id = m.channel_id
         WHERE searchable_content != ''
           AND (($1::TEXT[] IS NULL) OR (user_id = ANY($1)))
           AND (($2::TEXT[] IS NULL) OR (channel_id = ANY($2)))
