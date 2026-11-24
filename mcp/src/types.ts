@@ -133,13 +133,17 @@ export type Channel = z.infer<typeof zChannel>;
 export const zIncludeFilters = z.object({
   includeFiles: z
     .boolean()
+    .nullish()
+    .transform((v) => v ?? true)
     .describe(
-      'Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread.',
+      'Optional. Specifies if file attachment metadata should be included. It is recommended to enable as it provides extra context for the thread. Defaults to true.',
     ),
   includePermalinks: z
     .boolean()
+    .nullish()
+    .transform((v) => v ?? false)
     .describe(
-      'Specifies if permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested.',
+      'Optional. Specifies if permalinks should be added to every message. This adds to token cost and should not be used unless explicitly requested. Defaults to false.',
     ),
 });
 
@@ -147,13 +151,13 @@ export const zMessageFilter = z.object({
   channel: z
     .string()
     .min(1)
-    .describe('The ID of the channel to fetch messages from.'),
+    .describe('Required. The ID of the channel to fetch messages from.'),
 
   ts: z
     .string()
     .min(1)
     .describe(
-      'The thread timestamp to fetch messages for. This is the ts of the parent message. Use the `thread_ts` field from a known message in the thread.',
+      'Required. The thread timestamp to fetch messages for. This is the ts of the parent message. Use the `thread_ts` field from a known message in the thread.',
     ),
 });
 
@@ -162,15 +166,15 @@ export type MessageFilter = z.infer<typeof zMessageFilter>;
 export const zTimeFilters = z.object({
   timestampStart: z.iso
     .datetime({ offset: true })
-    .nullable()
+    .nullish()
     .describe(
-      'Optional start date for the message range, as an ISO 8601 datetime string. Defaults to rangeEnd - 1w.',
+      'Optional. Start date for the message range, as an ISO 8601 datetime string. Defaults to timestampEnd - 1 week.',
     ),
   timestampEnd: z.iso
     .datetime({ offset: true })
-    .nullable()
+    .nullish()
     .describe(
-      'Optional end date for the message range, as an ISO 8601 datetime string. Defaults to the current time.',
+      'Optional. End date for the message range, as an ISO 8601 datetime string. Defaults to the current time.',
     ),
 });
 
@@ -178,8 +182,10 @@ export const zLimitFilter = z.object({
   limit: z.coerce
     .number()
     .min(1)
-    .nullable()
-    .describe('The maximum number of messages to return. Defaults to 1000.'),
+    .nullish()
+    .describe(
+      'Optional. The maximum number of messages to return. Defaults to 1000.',
+    ),
 });
 
 export const zCommonSearchFilters = z.object({
@@ -192,7 +198,7 @@ export const zUserSearchFilters = z.object({
   username: z
     .string()
     .describe(
-      'The Slack user to fetch messages for. Can be the id, username, real name, display name, or email. Returns an error if multiple users match.',
+      'Required. The Slack user to fetch messages for. Can be the id, username, real name, display name, or email. Returns an error if multiple users match.',
     ),
 });
 
@@ -200,7 +206,7 @@ export const zChannelSearchFilters = z.object({
   channelName: z
     .string()
     .describe(
-      'The Slack channel to fetch messages for. Can be the channel id or name. Returns an error if multiple channels match.',
+      'Required. The Slack channel to fetch messages for. Can be the channel id or name. Returns an error if multiple channels match.',
     ),
 });
 
@@ -208,9 +214,9 @@ export const zWindowFilter = z.object({
   window: z.coerce
     .number()
     .min(0)
-    .nullable()
+    .nullish()
     .describe(
-      'The window of context around the target messages to include. Defaults to 5.',
+      'Optional. The window of context around the target messages to include. Defaults to 5.',
     ),
 });
 

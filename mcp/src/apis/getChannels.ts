@@ -6,9 +6,9 @@ const inputSchema = {
   keyword: z
     .string()
     .min(0)
-    .nullable()
+    .nullish()
     .describe(
-      'Keyword to use to find partial matches on channels. Will return channels whose id (e.g. C0930RJ40Q0) or name (e.g. #team-tootsie-roll) contain the given keyword. This is case insensitive.',
+      'Optional. Keyword to use to find partial matches on channels. Will return channels whose id (e.g. C0930RJ40Q0) or name (e.g. #team-tootsie-roll) contain the given keyword. This is case insensitive. Defaults to null (returns all channels).',
     ),
 } as const;
 
