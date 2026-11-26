@@ -5,7 +5,12 @@ from unittest.mock import patch
 
 import pytest
 
-from tiger_slack.utils import parse_since_flag, remove_null_bytes
+from tiger_slack.constants import SEARCH_CONTENT_FIELD
+from tiger_slack.utils import (
+    add_message_searchable_content,
+    parse_since_flag,
+    remove_null_bytes,
+)
 
 
 @pytest.mark.parametrize(
@@ -111,3 +116,46 @@ def test_parse_since_flag_invalid_formats(invalid_str):
     """Test that invalid formats raise ValueError with helpful message."""
     with pytest.raises(ValueError, match="Invalid --since format"):
         parse_since_flag(invalid_str)
+
+
+@pytest.mark.parametrize(
+    "message,expected",
+    [
+        (
+            {"text": "hello", "attachments": [{"fallback": "Build passed"}]},
+            "hello\n\nAttachment 1\nBuild passed",
+        ),
+        (
+            {
+                "text": "",
+                "attachments": [
+                    {
+                        "fallback": "Deploy finished",
+                        "blocks": [
+                            {
+                                "type": "context",
+                                "elements": [
+                                    {"type": "mrkdwn", "text": "Deploy finished"}
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            },
+            "\n\nAttachment 1\nDeploy finished",
+        ),
+        (
+            {
+                "text": "hello",
+                "attachments": [
+                    {"title": "Title", "text": "Body", "fallback": "Fallback"}
+                ],
+            },
+            "hello\n\nAttachment 1\nTitle\nBody",
+        ),
+    ],
+)
+def test_add_message_searchable_content_attachments(message, expected):
+    """Test that each attachment adds its text once, or its fallback if it has no text."""
+    add_message_searchable_content(message)
+    assert message[SEARCH_CONTENT_FIELD] == expected

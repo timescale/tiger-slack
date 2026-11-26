@@ -191,11 +191,7 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
         # and all of them have a fallback
         for index, attachment in enumerate(attachments):
             searchable_content += f"\n\nAttachment {index + 1}"
-
-            if attachment.title:
-                searchable_content += f"\n{attachment.title}"
-            if attachment.text:
-                searchable_content += f"\n{attachment.text}"
+            attachment_start = len(searchable_content)
 
             if isinstance(attachment, Attachment):
                 if attachment.title:
@@ -226,7 +222,11 @@ def add_message_searchable_content(message: dict[str, Any]) -> None:
                             )
                         searchable_content += "\n"
 
-            if not searchable_content and attachment.fallback:
+            # only use the fallback if the attachment had no other text
+            if (
+                not searchable_content[attachment_start:].strip()
+                and attachment.fallback
+            ):
                 searchable_content += f"\n{attachment.fallback}"
     except Exception:
         logfire.exception(
